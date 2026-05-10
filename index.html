@@ -51,7 +51,8 @@
 
     <!-- TABS -->
     <div class="tabs">
-      <button class="tab-btn active" data-tab="overview">Overview</button>
+      <button class="tab-btn active" data-tab="flights">✈️ Flights</button>
+      <button class="tab-btn" data-tab="overview">Overview</button>
       <button class="tab-btn" data-tab="cash">Cash Fares</button>
       <button class="tab-btn" data-tab="points">Points & Miles</button>
       <button class="tab-btn" data-tab="mixed">Mixed Strategies</button>
@@ -59,8 +60,27 @@
       <button class="tab-btn" data-tab="heatmap">Date Heatmap</button>
     </div>
 
+    <!-- TAB: FLIGHTS -->
+    <div class="tab-panel active" id="panel-flights">
+      <div class="section">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+          <div class="section-head" style="margin:0"><span class="icon">✈️</span> Flight Itineraries</div>
+          <div class="fg"><label for="itin-sort">Sort:</label><select id="itin-sort" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:.82rem;font-family:inherit;color:var(--text)">
+            <option value="best">Best Overall</option>
+            <option value="price">Lowest Cash</option>
+            <option value="duration">Shortest</option>
+            <option value="cpp">Best Points Value</option>
+            <option value="risk">Lowest Risk</option>
+          </select></div>
+          <div class="fg"><input type="checkbox" id="itin-group"><label for="itin-group">Group by route</label></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Concrete flight options with flight numbers, times, and layovers. Click any card to expand details.</p>
+        <div id="itineraries-list"></div>
+      </div>
+    </div>
+
     <!-- TAB: OVERVIEW -->
-    <div class="tab-panel active" id="panel-overview">
+    <div class="tab-panel" id="panel-overview">
       <div id="warnings"></div>
       <div class="section">
         <div class="section-head"><span class="icon">✈️</span> All Routes</div>
@@ -150,5 +170,7 @@
   <script src="data.js"></script>
   <script src="logic.js"></script>
   <script src="ui.js"></script>
+  <script src="itineraries.js"></script>
+  <script src="itinerary-ui.js"></script>
 </body>
 </html>
