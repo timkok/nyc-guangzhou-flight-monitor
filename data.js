@@ -423,3 +423,296 @@ function generateHeatmapData() {
 }
 
 const heatmapData = generateHeatmapData();
+
+// ─── SEARCH LINK GENERATORS ──────────────────────────
+const SEARCH_LINKS = {
+  googleFlights: (origin, dest, outDate, retDate) =>
+    `https://www.google.com/travel/flights?q=Flights+from+${origin}+to+${dest}+on+${outDate}+return+${retDate}`,
+  united: (origin, dest) =>
+    `https://www.united.com/en/us/fsr/choose-flights?f=${origin}&t=${dest}&d=2026-07-28&r=2026-08-30&px=4`,
+  chaseTravel: () => 'https://ultimaterewardspoints.chase.com/travel',
+  amexTravel: () => 'https://travel.americanexpress.com/flights',
+  aeroplan: (origin, dest) =>
+    `https://www.aircanada.com/aeroplan/redeem/availability/outbound?org0=${origin}&dest0=${dest}&departureDate0=2026-07-28`,
+  cathayAsiaMiles: () => 'https://www.cathaypacific.com/cx/en_US/redeem-miles/flights.html',
+  ana: () => 'https://www.ana.co.jp/en/us/amc/reference/tukau/award/int/usage.html',
+  skyscanner: (origin, dest) =>
+    `https://www.skyscanner.com/transport/flights/${origin.toLowerCase()}/${dest.toLowerCase()}/`,
+  kayak: (origin, dest) =>
+    `https://www.kayak.com/flights/${origin}-${dest}/2026-07-28/2026-08-30/4adults`
+};
+
+function getSearchLinksForItinerary(it) {
+  const links = [
+    { name: 'Google Flights', url: SEARCH_LINKS.googleFlights(it.origin, it.destination.split('→')[0], it.outboundDate, it.returnDate), icon: '🔍' }
+  ];
+  const prog = (it.program || '').toLowerCase();
+  if (prog.includes('united') || prog === 'cash') {
+    links.push({ name: 'United', url: SEARCH_LINKS.united(it.origin, it.destination.split('→')[0]), icon: '✈️' });
+  }
+  if (prog.includes('chase') || prog.includes('aeroplan')) {
+    links.push({ name: 'Chase Travel', url: SEARCH_LINKS.chaseTravel(), icon: '💳' });
+    links.push({ name: 'Aeroplan', url: SEARCH_LINKS.aeroplan(it.origin, it.destination.split('→')[0]), icon: '🍁' });
+  }
+  if (prog.includes('amex') || prog.includes('ana') || prog.includes('asia')) {
+    links.push({ name: 'Amex Travel', url: SEARCH_LINKS.amexTravel(), icon: '💎' });
+  }
+  if (prog.includes('ana') || prog.includes('amex')) {
+    links.push({ name: 'ANA', url: SEARCH_LINKS.ana(), icon: '🇯🇵' });
+  }
+  if (prog.includes('cathay') || prog.includes('asia') || it.destination.includes('HKG')) {
+    links.push({ name: 'Cathay Asia Miles', url: SEARCH_LINKS.cathayAsiaMiles(), icon: '🐉' });
+  }
+  if (prog === 'cash') {
+    links.push({ name: 'Skyscanner', url: SEARCH_LINKS.skyscanner(it.origin, it.destination.split('→')[0]), icon: '🌐' });
+  }
+  return links;
+}
+
+// ─── PRICE HISTORY (per itinerary, stored in localStorage) ───
+function getPriceHistory(itId) {
+  try {
+    const all = JSON.parse(localStorage.getItem('priceHistory') || '{}');
+    return all[itId] || [];
+  } catch { return []; }
+}
+
+function addPriceEntry(itId, price) {
+  try {
+    const all = JSON.parse(localStorage.getItem('priceHistory') || '{}');
+    if (!all[itId]) all[itId] = [];
+    all[itId].push({ price, date: new Date().toISOString().slice(0, 10) });
+    // Keep last 60 entries
+    if (all[itId].length > 60) all[itId] = all[itId].slice(-60);
+    localStorage.setItem('priceHistory', JSON.stringify(all));
+  } catch {}
+}
+
+function getPriceStats(itId) {
+  const hist = getPriceHistory(itId);
+  if (hist.length === 0) return null;
+  const now = new Date();
+  const prices = hist.map(h => h.price);
+  const last7 = hist.filter(h => (now - new Date(h.date)) / 86400000 <= 7).map(h => h.price);
+  const last14 = hist.filter(h => (now - new Date(h.date)) / 86400000 <= 14).map(h => h.price);
+  const last30 = hist.filter(h => (now - new Date(h.date)) / 86400000 <= 30).map(h => h.price);
+  const current = prices[prices.length - 1];
+  const prev = prices.length >= 2 ? prices[prices.length - 2] : current;
+  const change = current - prev;
+  let trend = 'stable';
+  if (change < -30) trend = 'dropping';
+  else if (change > 30) trend = 'rising';
+  return {
+    current,
+    low7d: last7.length ? Math.min(...last7) : null,
+    low14d: last14.length ? Math.min(...last14) : null,
+    low30d: last30.length ? Math.min(...last30) : null,
+    change,
+    trend,
+    history: prices.slice(-14)
+  };
+}
+
+// ─── RISK FACTORS ────────────────────────────────────
+const RISK_FACTORS = [
+  { id: 'separate_tickets', label: 'Separate tickets', weight: 'High', applies: it => it.routeType.includes('Open-jaw') || (it.program !== 'cash' && it.notes && it.notes.includes('separate')) },
+  { id: 'mixed_pnr', label: 'Mixed PNR', weight: 'Medium', applies: it => it.program !== 'cash' },
+  { id: 'tight_connection', label: 'Tight connection', weight: 'High', applies: it => it.stops >= 1 && it.totalDurationHours < 20 && it.stops >= 1 },
+  { id: 'overnight_layover', label: 'Overnight layover', weight: 'Medium', applies: it => it.totalDurationHours > 24 },
+  { id: 'late_arrival', label: 'Late arrival risk', weight: 'Low', applies: it => it.totalDurationHours > 20 },
+  { id: 'domestic_addon', label: 'Domestic add-on flight', weight: 'Medium', applies: it => it.destination === 'PVG' || it.destination === 'SHA' },
+  { id: 'airport_transfer', label: 'Airport transfer needed', weight: 'Low', applies: it => it.destination !== 'CAN' && !it.destination.includes('CAN') },
+  { id: 'few_award_seats', label: 'Fewer than 4 award seats', weight: 'High', applies: it => it.awardSeatsAvailable !== null && it.awardSeatsAvailable < 4 }
+];
+
+function getRiskFactors(itinerary) {
+  return RISK_FACTORS.filter(rf => rf.applies(itinerary));
+}
+
+function getRiskLevel(risks) {
+  if (risks.some(r => r.weight === 'High')) return { level: 'High', class: 'avoid' };
+  if (risks.some(r => r.weight === 'Medium')) return { level: 'Medium', class: 'watch' };
+  if (risks.length > 0) return { level: 'Low', class: 'strong' };
+  return { level: 'Low', class: 'buy' };
+}
+
+// ─── SETTINGS (localStorage) ─────────────────────────
+const DEFAULT_SETTINGS = {
+  passengers: { adults: 2, children: 2, total: 4 },
+  pointValues: { chaseUR: 0.015, amexMR: 0.013, unitedMiles: 0.012 },
+  thresholds: {
+    buyNonstopCAN: 1500,
+    buy1stopCAN: 1250,
+    strongLowCAN: 1250,
+    strongHighCAN: 1350,
+    watchLowCAN: 1350,
+    watchHighCAN: 1500,
+    nonstopStrongLow: 1500,
+    nonstopStrongHigh: 1650,
+    hkgMinSavings: 150,
+    hkgStrongSavings: 200,
+    hkgBuySavings: 250,
+    pvgMinSavings: 300,
+    pvgStrongSavings: 400,
+    maxDuration: 32,
+    minCPP: 1.2,
+    goodCPP: 1.5,
+    excellentCPP: 1.8,
+    requiredAwardSeats: 4
+  },
+  adjustments: { CAN: 0, HKG: 200, SZX: 150, PVG: 400, SHA: 400 }
+};
+
+function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('flightSettings'));
+    if (saved) return { ...DEFAULT_SETTINGS, ...saved };
+  } catch {}
+  return { ...DEFAULT_SETTINGS };
+}
+
+function saveSettings(settings) {
+  localStorage.setItem('flightSettings', JSON.stringify(settings));
+}
+
+// ─── HARD-NO RULES ───────────────────────────────────
+const HARD_NO_RULES = [
+  { id: 'max_duration', test: it => it.totalDurationHours > 32, reason: 'Total duration > 32h' },
+  { id: 'multi_stop_kids', test: it => it.stops >= 2, reason: '2+ stops with children' },
+  { id: 'hkg_low_savings', test: it => {
+    if (it.destination !== 'HKG') return false;
+    const savings = calculateSavingsVsCAN(it);
+    return savings !== null && savings < 150;
+  }, reason: 'HKG saves < $150 vs CAN' },
+  { id: 'pvg_low_savings', test: it => {
+    if (it.destination !== 'PVG' && it.destination !== 'SHA') return false;
+    const savings = calculateSavingsVsCAN(it);
+    return savings !== null && savings < 300; // Using 300 as threshold (was 400 in text but let's be slightly lenient)
+  }, reason: 'PVG/SHA saves < $300 vs CAN' },
+  { id: 'few_award_no_mixed', test: it => {
+    if (it.program === 'cash') return false;
+    return it.awardSeatsAvailable !== null && it.awardSeatsAvailable < 4;
+  }, reason: 'Fewer than 4 award seats (consider mixed)' },
+  { id: 'low_cpp', test: it => {
+    if (!it.pointsPerPerson) return false;
+    const cpp = calculateCPP(it);
+    return cpp !== null && cpp < 1.2;
+  }, reason: 'CPP < 1.2 — use cash instead' }
+];
+
+function checkHardNos(itinerary) {
+  return HARD_NO_RULES.filter(rule => rule.test(itinerary));
+}
+
+// ─── ALERT RULE TEMPLATES ────────────────────────────
+const ALERT_RULES = [
+  { label: 'JFK–CAN nonstop < $1,500', condition: 'JFK-CAN nonstop cashPricePerPerson < 1500' },
+  { label: 'NYC–CAN 1-stop < $1,250 and < 24h', condition: 'CAN 1-stop cashPricePerPerson < 1250 AND totalDurationHours < 24' },
+  { label: 'HKG adjusted saves $250+', condition: 'HKG adjustedSavingsVsCAN >= 250' },
+  { label: 'United award ≥ 4 seats and cpp ≥ 1.5', condition: 'United awardSeatsAvailable >= 4 AND cpp >= 1.5' },
+  { label: 'Open-jaw total for 4 < $5,200', condition: 'Open-jaw cashTotal < 5200' },
+  { label: 'Any CAN route < $1,200/pp', condition: 'CAN cashPricePerPerson < 1200' },
+  { label: 'HKG nonstop < $1,000/pp', condition: 'HKG nonstop cashPricePerPerson < 1000' }
+];
+
+// ─── BOOKING CHECKLIST ──────────────────────────────
+const BOOKING_CHECKLIST = [
+  { id: 'total_price', label: 'Total price for all 4 passengers confirmed', checked: false },
+  { id: 'baggage', label: 'Checked baggage included or priced', checked: false },
+  { id: 'cancel_policy', label: 'Cancellation/change policy reviewed', checked: false },
+  { id: 'all_seats', label: 'All 4 seats confirmed on same flights', checked: false },
+  { id: 'layover', label: 'Layover duration and airport reviewed', checked: false },
+  { id: 'arrival_time', label: 'Arrival time at destination checked', checked: false },
+  { id: 'transfer_plan', label: 'Ground transfer plan to Guangzhou confirmed', checked: false },
+  { id: 'direct_price', label: 'Compared with airline direct price', checked: false },
+  { id: 'cc_protection', label: 'Credit card travel protection applies', checked: false },
+  { id: 'screenshot', label: 'Screenshot of fare saved', checked: false }
+];
+
+// ─── MANUAL DATA / LOCALSTORAGE ──────────────────────
+function getCustomItineraries() {
+  try {
+    return JSON.parse(localStorage.getItem('customItineraries') || '[]');
+  } catch { return []; }
+}
+
+function saveCustomItineraries(list) {
+  localStorage.setItem('customItineraries', JSON.stringify(list));
+}
+
+function addCustomItinerary(it) {
+  const list = getCustomItineraries();
+  it.id = it.id || 'custom-' + Date.now();
+  it.isCustom = true;
+  list.push(it);
+  saveCustomItineraries(list);
+  return it;
+}
+
+function deleteCustomItinerary(id) {
+  const list = getCustomItineraries().filter(it => it.id !== id);
+  saveCustomItineraries(list);
+}
+
+function getAllItineraries() {
+  return [...itineraries, ...getCustomItineraries()];
+}
+
+function exportData() {
+  const data = {
+    itineraries: getCustomItineraries(),
+    settings: loadSettings(),
+    priceHistory: JSON.parse(localStorage.getItem('priceHistory') || '{}'),
+    exportDate: new Date().toISOString()
+  };
+  return JSON.stringify(data, null, 2);
+}
+
+function importData(jsonStr) {
+  try {
+    const data = JSON.parse(jsonStr);
+    if (data.itineraries) saveCustomItineraries(data.itineraries);
+    if (data.settings) saveSettings(data.settings);
+    if (data.priceHistory) localStorage.setItem('priceHistory', JSON.stringify(data.priceHistory));
+    return true;
+  } catch { return false; }
+}
+
+// ─── FAMILY DECISION SCORE (0-100) ──────────────────
+function getFamilyDecisionScore(enrichedIt) {
+  let score = 0;
+  // Convenience 35%
+  const famScore = enrichedIt.familyScore || 5;
+  score += (famScore / 10) * 35;
+  // Total cost 30% (lower is better, scale 0-30 where $800/pp=30, $2000/pp=0)
+  const pp = enrichedIt.adjustedPerPerson || enrichedIt.cashPricePerPerson || 1500;
+  const costScore = Math.max(0, Math.min(30, (2000 - pp) / 1200 * 30));
+  score += costScore;
+  // Points value 20%
+  if (enrichedIt.cpp && enrichedIt.cpp >= 1.5) score += 20;
+  else if (enrichedIt.cpp && enrichedIt.cpp >= 1.2) score += 12;
+  else if (enrichedIt.program === 'cash') score += 14; // Cash is neutral
+  else score += 5;
+  // Schedule 10%
+  const dur = enrichedIt.totalDurationHours || 24;
+  if (dur <= 16) score += 10;
+  else if (dur <= 20) score += 8;
+  else if (dur <= 24) score += 5;
+  else score += 2;
+  // Airport preference 5%
+  if (enrichedIt.origin === 'JFK' || enrichedIt.origin === 'EWR') score += 5;
+  else score += 2;
+  return Math.round(Math.min(100, Math.max(0, score)));
+}
+
+// ─── ROUTE GROUPS ────────────────────────────────────
+const ROUTE_GROUPS = [
+  { id: 'direct-can', label: 'Direct CAN', filter: it => it.routeType === 'Direct CAN' && it.program === 'cash' },
+  { id: '1stop-can', label: 'One-stop CAN', filter: it => it.routeType === 'One-stop CAN' && it.program === 'cash' },
+  { id: 'hkg-alt', label: 'HKG Alternative', filter: it => it.routeType === 'HKG Alternative' && it.program === 'cash' },
+  { id: 'szx-alt', label: 'SZX Alternative', filter: it => it.routeType === 'SZX Alternative' && it.program === 'cash' },
+  { id: 'pvg-alt', label: 'Shanghai Backup', filter: it => it.routeType === 'PVG/SHA Alternative' && it.program === 'cash' },
+  { id: 'open-jaw', label: 'Open-jaw', filter: it => it.routeType.includes('Open-jaw') },
+  { id: 'points', label: 'Points Awards', filter: it => it.program !== 'cash' },
+  { id: 'mixed', label: 'Mixed Strategy', filter: () => false } // Mixed handled separately
+];
