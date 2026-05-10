@@ -209,13 +209,53 @@ function sortItineraries(list, sortBy) {
   }
 }
 
+function filterItineraries(list) {
+  const includeHKG = document.getElementById('f-hkg')?.checked ?? true;
+  const includePVG = document.getElementById('f-pvg')?.checked ?? true;
+  const nonstopOnly = document.getElementById('f-nonstop')?.checked ?? false;
+  const oneStopAllowed = document.getElementById('f-1stop')?.checked ?? true;
+  const familyOnly = document.getElementById('f-family')?.checked ?? false;
+  const bookableOnly = document.getElementById('f-bookable')?.checked ?? false;
+
+  return list.filter(it => {
+    if (!includeHKG && it.destination === 'HKG') return false;
+    if (!includePVG && (it.destination === 'PVG' || it.destination === 'SHA')) return false;
+    if (nonstopOnly && it.stopsOutbound > 0) return false;
+    if (!oneStopAllowed && it.stopsOutbound > 1) return false;
+    if (familyOnly && it.riskLevel === 'High') return false;
+    if (bookableOnly && it.paymentType === 'points' && !it.familyBookable) return false;
+    return true;
+  });
+}
+
+function resetFilters() {
+  const ids = ['f-hkg', 'f-pvg', 'f-1stop'];
+  ids.forEach(id => { const el = document.getElementById(id); if(el) el.checked = true; });
+  const idsFalse = ['f-nonstop', 'f-family', 'f-bookable'];
+  idsFalse.forEach(id => { const el = document.getElementById(id); if(el) el.checked = false; });
+  renderItinerariesTab();
+}
+
 // Render the itineraries tab
 function renderItinerariesTab() {
   const sort = document.getElementById('itin-sort')?.value || 'best';
-  const sorted = sortItineraries(ITINERARIES, sort);
-  const grouped = document.getElementById('itin-group')?.checked;
   const container = document.getElementById('itineraries-list');
   if (!container) return;
+
+  if (typeof ITINERARIES === 'undefined' || ITINERARIES.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted)">No itinerary data loaded. Add sample data or import JSON.</div>`;
+    return;
+  }
+
+  const filtered = filterItineraries(ITINERARIES);
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted)">No itineraries match the current filters. <button class="btn-sm" onclick="resetFilters()">Reset Filters</button></div>`;
+    return;
+  }
+
+  const sorted = sortItineraries(filtered, sort);
+  const grouped = document.getElementById('itin-group')?.checked;
+  
   container.innerHTML = grouped ? renderGroupedItineraries(sorted) : `<div class="route-cards">${renderAllItineraryCards(sorted)}</div>`;
 }
 
@@ -224,4 +264,8 @@ document.addEventListener('DOMContentLoaded', () => {
   renderItinerariesTab();
   document.getElementById('itin-sort')?.addEventListener('change', renderItinerariesTab);
   document.getElementById('itin-group')?.addEventListener('change', renderItinerariesTab);
+  
+  ['f-hkg', 'f-pvg', 'f-nonstop', 'f-1stop', 'f-family', 'f-bookable'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', renderItinerariesTab);
+  });
 });
