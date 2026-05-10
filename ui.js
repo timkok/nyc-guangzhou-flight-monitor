@@ -62,36 +62,45 @@ function renderStatusBanner(enriched) {
 
 // ─── SUMMARY CARDS ───────────────────────────────────
 function renderSummaryCards(enriched) {
-  const best = getBestOverallOption(enriched);
-  const cash = getBestCashFor4(enriched);
-  const pts = getBestPointsFor4(enriched);
-  const backup = getBestBackupRoute(enriched);
+  // Use ITINERARIES instead of enriched to ensure concrete options
+  const best = typeof ITINERARIES !== 'undefined' ? ITINERARIES.find(it => it.id === 'jfk-can-cz328') || ITINERARIES[0] : null;
+  const cash = typeof ITINERARIES !== 'undefined' ? ITINERARIES.find(it => it.id === 'ewr-can-tk-ist') || ITINERARIES[1] : null;
+  const pts = typeof ITINERARIES !== 'undefined' ? ITINERARIES.find(it => it.id === 'ewr-hkg-ua-award') || ITINERARIES[6] : null;
+  const backup = typeof ITINERARIES !== 'undefined' ? ITINERARIES.find(it => it.id === 'jfk-pvg-mu-nonstop') || ITINERARIES[4] : null;
+
   const cards = [
-    { data: best, label: 'Best Overall', stripe: 'blue', featured: true, type: 'cash' },
-    { data: cash, label: 'Best Cash for 4', stripe: 'green', type: 'cash' },
-    { data: pts, label: 'Best Points for 4', stripe: 'purple', type: 'points' },
-    { data: backup, label: 'Best Backup Route', stripe: 'amber', type: 'cash' }
+    { data: best, label: 'Best Overall', stripe: 'blue', featured: true },
+    { data: cash, label: 'Best Cash for 4', stripe: 'green' },
+    { data: pts, label: 'Best Points for 4', stripe: 'purple' },
+    { data: backup, label: 'Best Backup Route', stripe: 'amber' }
   ];
+
   return cards.map(c => {
     if (!c.data) return '';
     const it = c.data;
-    const price = c.type === 'points' && it.pointsPerPerson
-      ? fmtK(it.pointsPerPerson * passengerConfig.total) + ' pts'
-      : fmt(it.cashTotal);
-    const sub = c.type === 'points' && it.cpp
-      ? `${it.cpp.toFixed(1)} cpp · ${it.availability.label}`
-      : `Adjusted: ${fmt(it.adjustedTotal)} for 4`;
-    const bc = badgeClass(it.recommendation.label);
-    const actionCls = bc === 'buy' ? 'green' : bc === 'strong' ? 'blue' : 'amber';
-    return `<div class="s-card${c.featured ? ' featured' : ''}">
+    const price = it.paymentType === 'points'
+      ? (it.totalPointsForFamily / 1000).toFixed(0) + 'k pts'
+      : '$' + it.totalCashForFamily;
+    const sub = it.paymentType === 'points'
+      ? `${it.cpp?.toFixed(1)} cpp · ${it.awardSeatsAvailable} seats`
+      : `Adjusted: $${it.adjustedTotalForFamily} for 4`;
+    
+    const airline = it.airline || 'Various';
+    const duration = it.totalDurationMinutesOutbound ? Math.round(it.totalDurationMinutesOutbound/60) + 'h' : '—';
+    const stops = it.stopsOutbound === 0 ? 'Nonstop' : it.stopsOutbound + '-stop';
+
+    const bc = it.recommendation.toLowerCase();
+    const actionCls = bc === 'buy now' ? 'buy' : bc === 'strong' ? 'strong' : bc === 'avoid' ? 'avoid' : 'watch';
+
+    return `<div class="s-card${c.featured ? ' featured' : ''}" style="cursor:pointer" onclick="const btn = document.querySelector('[data-tab=\\'flights\\']'); if(btn) btn.click(); const el = document.getElementById('itin-${it.id}'); if(el) el.scrollIntoView({behavior:'smooth'});">
       <div class="s-card-stripe ${c.stripe}"></div>
       <div class="s-card-label">${c.label}</div>
       <div class="s-card-route">${it.origin} → ${it.destination}</div>
-      <div style="margin-bottom:4px">${recToBadge(it.recommendation)} ${programBadge(it.program)}</div>
+      <div style="margin-bottom:4px"><span class="badge badge-${actionCls}">${it.recommendation}</span></div>
       <div class="s-card-price">${price}</div>
       <div class="s-card-meta">${sub}</div>
-      <div class="s-card-meta">${it.airline} · ${it.totalDurationHours}h · ${it.stops === 0 ? 'Nonstop' : it.stops + '-stop'}</div>
-      <div class="s-card-reason">${it.recommendation.reason}</div>
+      <div class="s-card-meta">${airline} · ${duration} · ${stops}</div>
+      <div class="s-card-reason">${it.recommendationReason || ''}</div>
     </div>`;
   }).join('');
 }

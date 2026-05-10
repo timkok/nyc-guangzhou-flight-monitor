@@ -96,11 +96,18 @@ function renderItineraryCard(it) {
   const awardBadge = it.awardSeatsAvailable != null ? `<span class="badge badge-${it.familyBookable?'buy':'avoid'}">${it.awardSeatsAvailable}/4 seats</span>` : '';
   const payBadge = isPoints ? `<span class="badge badge-points">${it.pointsProgram}</span>` : '<span class="badge badge-cash">Cash</span>';
 
-  return `<div class="route-card rec-${recCls}" id="${it.id}">
+  const getFlightNumbersSummary = (it) => {
+    const out = (it.outboundSegments || []).map(s => s.flightNumber).filter(Boolean).join('/');
+    const ret = (it.returnSegments || []).map(s => s.flightNumber).filter(Boolean).join('/');
+    if (!out && !ret) return 'Flight numbers TBD';
+    return `${out} | ${ret}`;
+  };
+
+  return `<div class="route-card rec-${recCls}" id="itin-${it.id}">
     <div class="rc-header" style="cursor:pointer" onclick="toggleExpand('${it.id}')">
       <div>
         <div class="rc-route">${it.title}</div>
-        <div style="font-size:.8rem;color:var(--muted)">${it.airline} · ${it.alliance || ''} · ${it.outboundDate} → ${it.returnDate}</div>
+        <div style="font-size:.8rem;color:var(--muted)">${it.airline} (${getFlightNumbersSummary(it)}) · ${it.outboundDate} → ${it.returnDate}</div>
       </div>
       <div class="rc-tags">
         <span class="badge badge-${recCls}">${it.recommendation}</span>
@@ -132,10 +139,13 @@ function renderItineraryCard(it) {
         <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">💬 Verdict</div>
         <div style="font-size:.85rem;color:var(--text)">${generateVerdict(it)}</div>
       </div>
-      <details style="margin-top:10px">
-        <summary style="font-size:.78rem;color:var(--muted);cursor:pointer">📋 Copy search task</summary>
-        <pre style="font-size:.75rem;background:var(--bg);padding:10px;border-radius:6px;margin-top:6px;white-space:pre-wrap;border:1px solid var(--border);cursor:pointer" onclick="navigator.clipboard.writeText(this.textContent);this.style.borderColor='var(--buy)';setTimeout(()=>this.style.borderColor='',1000)">${generateSearchTask(it)}</pre>
-      </details>
+      <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:.78rem;font-weight:600;color:var(--muted)">📋 Manual Search Task</span>
+          <button class="btn-sm" onclick="navigator.clipboard.writeText(\`${generateSearchTask(it).replace(/`/g, '\\`')}\`);this.textContent='✓ Copied!';setTimeout(()=>this.textContent='📋 Copy',1500)">📋 Copy</button>
+        </div>
+        <pre style="font-size:.75rem;white-space:pre-wrap;margin:0">${generateSearchTask(it)}</pre>
+      </div>
       <details style="margin-top:8px">
         <summary style="font-size:.78rem;color:var(--muted);cursor:pointer">✅ Booking safety checklist</summary>
         <div style="margin-top:6px;font-size:.8rem;color:var(--muted)">
