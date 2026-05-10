@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Family flight decision tool for NYC/NJ to Guangzhou area. Compare cash, points, and mixed booking strategies for 2 adults + 2 children.">
+  <title>NYC/NJ → Guangzhou Flight Decision Monitor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero-inner">
+      <h1>NYC/NJ → Greater Guangzhou Flight Decision Monitor</h1>
+      <p class="hero-sub">Late July / early August outbound · Late August / early September return · 2 adults + 2 children</p>
+      <div class="hero-chips">
+        <span class="chip"><span class="dot" style="background:#15803d"></span> EWR / JFK</span>
+        <span class="chip"><span class="dot" style="background:#2563eb"></span> CAN / HKG / SZX / PVG</span>
+        <span class="chip">👨‍👩‍👧‍👦 4 passengers</span>
+        <span class="chip">💳 Chase UR · Amex MR · United</span>
+        <span class="chip">🕐 Updated May 2026</span>
+      </div>
+      <div id="status-banner"></div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- SUMMARY CARDS -->
+    <section class="section">
+      <div class="section-head"><span class="icon">📊</span> Top Options at a Glance</div>
+      <div class="summary-grid" id="summary-cards"></div>
+    </section>
+
+    <!-- FILTERS -->
+    <div class="filters-bar">
+      <div class="fg"><label for="f-max-price">Max $/pp</label><input type="number" id="f-max-price" placeholder="Any"></div>
+      <div class="fg"><label for="f-max-dur">Max hours</label><input type="number" id="f-max-dur" placeholder="Any"></div>
+      <div class="f-div"></div>
+      <div class="fg"><input type="checkbox" id="f-hkg" checked><label for="f-hkg">Include HKG</label></div>
+      <div class="fg"><input type="checkbox" id="f-pvg" checked><label for="f-pvg">Include PVG/SHA</label></div>
+      <div class="f-div"></div>
+      <div class="fg"><input type="checkbox" id="f-nonstop"><label for="f-nonstop">Nonstop only</label></div>
+      <div class="fg"><input type="checkbox" id="f-1stop" checked><label for="f-1stop">Allow 1-stop</label></div>
+      <div class="fg"><input type="checkbox" id="f-family"><label for="f-family">Family-friendly only</label></div>
+      <div class="fg"><input type="checkbox" id="f-bookable"><label for="f-bookable">4-seat bookable only</label></div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="overview">Overview</button>
+      <button class="tab-btn" data-tab="cash">Cash Fares</button>
+      <button class="tab-btn" data-tab="points">Points & Miles</button>
+      <button class="tab-btn" data-tab="mixed">Mixed Strategies</button>
+      <button class="tab-btn" data-tab="alternatives">Alternatives</button>
+      <button class="tab-btn" data-tab="heatmap">Date Heatmap</button>
+    </div>
+
+    <!-- TAB: OVERVIEW -->
+    <div class="tab-panel active" id="panel-overview">
+      <div id="warnings"></div>
+      <div class="section">
+        <div class="section-head"><span class="icon">✈️</span> All Routes</div>
+        <div class="route-cards" id="overview-cards"></div>
+      </div>
+      <div class="section">
+        <div class="section-head"><span class="icon">📋</span> Comparison Table</div>
+        <div id="comparison-table"></div>
+      </div>
+    </div>
+
+    <!-- TAB: CASH -->
+    <div class="tab-panel" id="panel-cash">
+      <div class="section">
+        <div class="section-head"><span class="icon">💵</span> Cash Fare Routes</div>
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px">Ranked by adjusted total cost for 4 passengers. Adjustment accounts for airport transfers, overnight risk, and convenience.</p>
+        <div class="route-cards" id="cash-cards"></div>
+      </div>
+    </div>
+
+    <!-- TAB: POINTS -->
+    <div class="tab-panel" id="panel-points">
+      <div class="section">
+        <div class="section-head"><span class="icon">💎</span> Points Strategy</div>
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px">Points are only recommended when 4 seats are available or when a mixed strategy creates strong value.</p>
+        <div class="strategy-grid" id="points-strategy"></div>
+      </div>
+      <div class="section">
+        <div class="section-head"><span class="icon">🎫</span> Award Routes</div>
+        <div class="route-cards" id="points-cards"></div>
+      </div>
+    </div>
+
+    <!-- TAB: MIXED -->
+    <div class="tab-panel" id="panel-mixed">
+      <div class="section">
+        <div class="section-head"><span class="icon">🔀</span> Mixed Cash + Points Strategies</div>
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px">When only 2–3 award seats exist, or one direction has better award availability than the other.</p>
+        <div id="mixed-content"></div>
+      </div>
+    </div>
+
+    <!-- TAB: ALTERNATIVES -->
+    <div class="tab-panel" id="panel-alternatives">
+      <div class="section">
+        <div class="section-head"><span class="icon">🗺️</span> Alternative Destinations</div>
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px">Guangzhou is the goal. These airports are fallbacks — only choose them when the savings clearly justify the extra transfer.</p>
+        <div class="city-cards" id="alternatives-content"></div>
+      </div>
+    </div>
+
+    <!-- TAB: HEATMAP -->
+    <div class="tab-panel" id="panel-heatmap">
+      <div class="section">
+        <div class="section-head"><span class="icon">📅</span> Date × Price Heatmap</div>
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px">Mock data — update manually or connect to an API. Each cell shows lowest observed price for that date combination.</p>
+        <div id="heatmap-content"></div>
+      </div>
+    </div>
+
+    <!-- SCOPE TIPS -->
+    <section class="section" style="margin-top:16px">
+      <div class="section-head"><span class="icon">💡</span> How to Think About This Search</div>
+      <div class="scope-tips">
+        <div class="scope-tip"><span class="tip-icon">🎯</span> Search as a multi-airport Greater Guangzhou trip, not a single NYC–CAN fare.</div>
+        <div class="scope-tip"><span class="tip-icon">📆</span> Late July and early August should both stay in the search set.</div>
+        <div class="scope-tip"><span class="tip-icon">💡</span> Returning after Labor Day may unlock cheaper combinations.</div>
+        <div class="scope-tip"><span class="tip-icon">🔀</span> Compare HKG/SZX/PVG in, CAN out. Open-jaw is often more flexible than round trip.</div>
+        <div class="scope-tip"><span class="tip-icon">👨‍👩‍👧‍👦</span> The cheapest ticket is not always the cheapest family trip.</div>
+        <div class="scope-tip"><span class="tip-icon">💳</span> Compare cash price vs points value. 4 award seats are hard to find.</div>
+      </div>
+    </section>
+
+    <!-- SEARCH SHORTCUTS -->
+    <section class="section">
+      <div class="section-head"><span class="icon">🔗</span> Search Shortcuts</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Recheck fare, baggage, connection protection, and refund rules before buying.</p>
+      <div class="shortcuts-grid" id="shortcuts"></div>
+    </section>
+
+  </main>
+
+  <footer style="text-align:center;padding:32px 20px;font-size:.78rem;color:var(--light);border-top:1px solid var(--border)">
+    NYC/NJ → Guangzhou Flight Decision Monitor · Prices are snapshots until manually updated · Built for family travel planning
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="logic.js"></script>
+  <script src="ui.js"></script>
+</body>
+</html>
