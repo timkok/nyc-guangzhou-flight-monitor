@@ -84,6 +84,7 @@ function renderItineraryCard(it) {
   const priceDisplay = isPoints
     ? `${(it.pointsPerPerson/1000).toFixed(0)}k pts/pp`
     : `$${it.cashPricePerPerson?.toLocaleString()}/pp`;
+  const adjTotal = it.adjustedTotalForFamily ? `$${it.adjustedTotalForFamily.toLocaleString()}` : '—';
   const totalDisplay = isPoints
     ? `${(it.totalPointsForFamily/1000).toFixed(0)}k pts + $${(it.taxesPerPerson*4).toLocaleString()} tax`
     : `$${it.totalCashForFamily?.toLocaleString()} for 4`;
@@ -118,6 +119,7 @@ function renderItineraryCard(it) {
     <div class="metrics">
       <div class="metric"><div class="metric-label">Price</div><div class="metric-value">${priceDisplay}</div></div>
       <div class="metric"><div class="metric-label">Total for 4</div><div class="metric-value">${totalDisplay}</div></div>
+      <div class="metric"><div class="metric-label">Adjusted Total</div><div class="metric-value">${adjTotal}</div></div>
       <div class="metric"><div class="metric-label">Outbound</div><div class="metric-value">${durOut} · ${it.stopsOutbound===0?'Nonstop':it.stopsOutbound+'-stop'}</div></div>
       <div class="metric"><div class="metric-label">Return</div><div class="metric-value">${durRet} · ${it.stopsReturn===0?'Nonstop':it.stopsReturn+'-stop'}</div></div>
     </div>
