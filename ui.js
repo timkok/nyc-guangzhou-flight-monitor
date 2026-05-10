@@ -97,9 +97,24 @@ function renderSummaryCards(enriched) {
 }
 
 // ─── ROUTE CARDS ─────────────────────────────────────
+function renderRiskChips(it) {
+  const risks = getRiskFactors(it);
+  if (risks.length === 0) return '<span class="badge badge-buy">Low Risk</span>';
+  const level = getRiskLevel(risks);
+  const chips = risks.slice(0, 3).map(r => `<span class="badge badge-${r.weight === 'High' ? 'avoid' : r.weight === 'Medium' ? 'watch' : 'neutral'}" title="${r.weight}">${r.label}</span>`).join(' ');
+  return `<span class="badge badge-${level.class}">${level.level} Risk</span> ${chips}`;
+}
+
+function renderSearchButtons(it) {
+  const links = getSearchLinksForItinerary(it);
+  return links.map(l => `<a href="${l.url}" target="_blank" rel="noopener" class="btn-sm">${l.icon} ${l.name}</a>`).join('');
+}
+
 function renderRouteCard(it) {
   const rc = badgeClass(it.recommendation.label);
   const rcClass = `rec-${rc === 'buy' ? 'buy' : rc === 'strong' ? 'strong' : rc === 'avoid' ? 'avoid' : 'watch'}`;
+  const hardNos = checkHardNos(it);
+  const decisionScore = getFamilyDecisionScore(it);
 
   let priceMetrics = '';
   if (it.cashPricePerPerson != null) {
@@ -120,10 +135,16 @@ function renderRouteCard(it) {
   const cppHtml = it.cpp != null
     ? `<div class="rc-detail"><strong>CPP:</strong> ${it.cpp.toFixed(1)} <span class="badge badge-${it.cppRating.class}" style="margin-left:4px">${it.cppRating.label}</span></div>` : '';
 
+  const hardNoHtml = hardNos.length > 0
+    ? `<div style="margin-top:8px;padding:8px 12px;background:var(--avoid-bg);border-radius:8px;font-size:.78rem;color:var(--avoid)">⛔ ${hardNos.map(h => h.reason).join(' · ')}</div>` : '';
+
+  const buyBtn = it.recommendation.label === 'Buy Now'
+    ? `<button class="btn-sm primary" onclick="showChecklist('${it.id}')">✅ Booking Checklist</button>` : '';
+
   return `<div class="route-card ${rcClass}" id="${it.id}">
     <div class="rc-header">
       <div class="rc-route">${it.origin} → ${it.destination} <span style="font-weight:400;color:var(--muted);font-size:.85rem">${it.airline}</span></div>
-      <div class="rc-tags">${recToBadge(it.recommendation)} ${programBadge(it.program)} ${it.availability ? availBadge(it.availability) : ''}</div>
+      <div class="rc-tags">${recToBadge(it.recommendation)} ${programBadge(it.program)} ${it.availability ? availBadge(it.availability) : ''} <span class="badge badge-neutral">Score: ${decisionScore}/100</span></div>
     </div>
     <div class="metrics">${priceMetrics}
       <div class="metric"><div class="metric-label">Family Score</div><div class="metric-value">${familyBadge(it.familyScore)}</div></div>
@@ -136,8 +157,11 @@ function renderRouteCard(it) {
       ${cppHtml}
       ${it.payment ? `<div class="rc-detail"><strong>Pay with:</strong> <span class="badge badge-${it.payment.class === 'points' ? 'points' : it.payment.class === 'mixed' ? 'mixed' : 'cash'}">${it.payment.method}</span></div>` : ''}
     </div>
+    <div style="margin:8px 0;display:flex;flex-wrap:wrap;gap:4px">${renderRiskChips(it)}</div>
+    ${hardNoHtml}
     <div class="rc-footer">
       <div class="rc-reason">💡 ${it.notes}</div>
+      <div class="rc-actions" style="flex-wrap:wrap">${renderSearchButtons(it)} ${buyBtn}</div>
     </div>
   </div>`;
 }
@@ -409,6 +433,155 @@ function initFilters() {
       );
     });
   });
+}
+
+// ─── BOOKING CHECKLIST MODAL ─────────────────────────
+function showChecklist(itId) {
+  const it = getAllItineraries().find(i => i.id === itId);
+  const name = it ? `${it.origin} → ${it.destination}` : itId;
+  const items = BOOKING_CHECKLIST.map(c =>
+    `<label style="display:flex;gap:8px;padding:6px 0;font-size:.85rem;border-bottom:1px solid var(--border);cursor:pointer">
+      <input type="checkbox" style="accent-color:var(--buy);width:18px;height:18px">
+      <span>${c.label}</span>
+    </label>`
+  ).join('');
+  const modal = document.createElement('div');
+  modal.id = 'checklist-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `<div style="background:var(--card);border-radius:var(--r-lg);padding:24px;max-width:500px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:var(--sh-lg)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-size:1.05rem">✅ Booking Checklist: ${name}</h3>
+      <button onclick="this.closest('#checklist-modal').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    ${items}
+    <p style="margin-top:12px;font-size:.78rem;color:var(--muted)">Complete all items before finalizing your booking.</p>
+  </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+// ─── SETTINGS MODAL ──────────────────────────────────
+function showSettings() {
+  const s = loadSettings();
+  const modal = document.createElement('div');
+  modal.id = 'settings-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `<div style="background:var(--card);border-radius:var(--r-lg);padding:24px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:var(--sh-lg)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-size:1.05rem">⚙️ Settings</h3>
+      <button onclick="this.closest('#settings-modal').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;gap:10px">
+      <div class="section-head" style="font-size:.9rem">Point Values (cents per point)</div>
+      <div class="fg"><label>Chase UR</label><input type="number" id="s-chase" step="0.001" value="${s.pointValues.chaseUR}"></div>
+      <div class="fg"><label>Amex MR</label><input type="number" id="s-amex" step="0.001" value="${s.pointValues.amexMR}"></div>
+      <div class="fg"><label>United Miles</label><input type="number" id="s-united" step="0.001" value="${s.pointValues.unitedMiles}"></div>
+      <div class="section-head" style="font-size:.9rem;margin-top:8px">Buy Thresholds</div>
+      <div class="fg"><label>Nonstop CAN Buy</label><input type="number" id="s-buy-ns" value="${s.thresholds.buyNonstopCAN}"></div>
+      <div class="fg"><label>1-stop CAN Buy</label><input type="number" id="s-buy-1s" value="${s.thresholds.buy1stopCAN}"></div>
+      <div class="fg"><label>HKG min savings</label><input type="number" id="s-hkg-min" value="${s.thresholds.hkgMinSavings}"></div>
+      <div class="fg"><label>PVG min savings</label><input type="number" id="s-pvg-min" value="${s.thresholds.pvgMinSavings}"></div>
+      <div class="fg"><label>Max duration (h)</label><input type="number" id="s-max-dur" value="${s.thresholds.maxDuration}"></div>
+      <div class="fg"><label>Required award seats</label><input type="number" id="s-seats" value="${s.thresholds.requiredAwardSeats}"></div>
+      <div class="section-head" style="font-size:.9rem;margin-top:8px">Adjustments ($)</div>
+      <div class="fg"><label>HKG</label><input type="number" id="s-adj-hkg" value="${s.adjustments.HKG}"></div>
+      <div class="fg"><label>SZX</label><input type="number" id="s-adj-szx" value="${s.adjustments.SZX}"></div>
+      <div class="fg"><label>PVG/SHA</label><input type="number" id="s-adj-pvg" value="${s.adjustments.PVG}"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn-sm primary" onclick="applySettings()">Save & Reload</button>
+      <button class="btn-sm" onclick="this.closest('#settings-modal').remove()">Cancel</button>
+      <button class="btn-sm" onclick="resetSettings()" style="margin-left:auto;color:var(--avoid)">Reset Defaults</button>
+    </div>
+  </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+function applySettings() {
+  const s = loadSettings();
+  s.pointValues.chaseUR = parseFloat($('#s-chase').value) || 0.015;
+  s.pointValues.amexMR = parseFloat($('#s-amex').value) || 0.013;
+  s.pointValues.unitedMiles = parseFloat($('#s-united').value) || 0.012;
+  s.thresholds.buyNonstopCAN = parseInt($('#s-buy-ns').value) || 1500;
+  s.thresholds.buy1stopCAN = parseInt($('#s-buy-1s').value) || 1250;
+  s.thresholds.hkgMinSavings = parseInt($('#s-hkg-min').value) || 150;
+  s.thresholds.pvgMinSavings = parseInt($('#s-pvg-min').value) || 300;
+  s.thresholds.maxDuration = parseInt($('#s-max-dur').value) || 32;
+  s.thresholds.requiredAwardSeats = parseInt($('#s-seats').value) || 4;
+  s.adjustments.HKG = parseInt($('#s-adj-hkg').value) || 200;
+  s.adjustments.SZX = parseInt($('#s-adj-szx').value) || 150;
+  s.adjustments.PVG = parseInt($('#s-adj-pvg').value) || 400;
+  s.adjustments.SHA = s.adjustments.PVG;
+  saveSettings(s);
+  // Apply to runtime
+  pointValues.chaseUR = s.pointValues.chaseUR;
+  pointValues.amexMR = s.pointValues.amexMR;
+  pointValues.unitedMiles = s.pointValues.unitedMiles;
+  ADJUSTMENTS.HKG = s.adjustments.HKG;
+  ADJUSTMENTS.SZX = s.adjustments.SZX;
+  ADJUSTMENTS.PVG = s.adjustments.PVG;
+  ADJUSTMENTS.SHA = s.adjustments.SHA;
+  $('#settings-modal')?.remove();
+  renderApp();
+}
+
+function resetSettings() {
+  localStorage.removeItem('flightSettings');
+  $('#settings-modal')?.remove();
+  location.reload();
+}
+
+// ─── DATA MANAGEMENT ─────────────────────────────────
+function showDataPanel() {
+  const modal = document.createElement('div');
+  modal.id = 'data-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = `<div style="background:var(--card);border-radius:var(--r-lg);padding:24px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:var(--sh-lg)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-size:1.05rem">📊 Data Management</h3>
+      <button onclick="this.closest('#data-modal').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer">✕</button>
+    </div>
+    <div style="margin-bottom:12px">
+      <button class="btn-sm primary" onclick="doExport()">Export JSON</button>
+      <button class="btn-sm" onclick="document.getElementById('import-file').click()">Import JSON</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="doImport(event)">
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="section-head" style="font-size:.85rem">Custom itineraries (${getCustomItineraries().length})</div>
+      <p style="font-size:.78rem;color:var(--muted)">Custom itineraries are saved in your browser's localStorage.</p>
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="section-head" style="font-size:.85rem">Alert Rules (copy for price alerts)</div>
+      <div style="display:grid;gap:4px">${ALERT_RULES.map(r => `<div style="font-size:.8rem;padding:6px 10px;background:var(--bg);border-radius:6px;border:1px solid var(--border);cursor:pointer" onclick="navigator.clipboard.writeText('${r.condition}');this.style.borderColor='var(--buy)';setTimeout(()=>this.style.borderColor='',1000)" title="Click to copy">📋 ${r.label}</div>`).join('')}</div>
+    </div>
+  </div>`;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+function doExport() {
+  const json = exportData();
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'flight-monitor-data.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function doImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    if (importData(e.target.result)) {
+      alert('Data imported successfully!');
+      location.reload();
+    } else {
+      alert('Import failed — check JSON format.');
+    }
+  };
+  reader.readAsText(file);
 }
 
 document.addEventListener('DOMContentLoaded', renderApp);
