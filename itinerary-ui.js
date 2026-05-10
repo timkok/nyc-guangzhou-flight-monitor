@@ -38,6 +38,46 @@ function renderItineraryLinks(it) {
   return btns.join('');
 }
 
+function renderSourceBadge(it) {
+  const sc = getSourceConfidence(it);
+  return `${sc.icon} <span class="badge badge-${sc.cls}">${sc.label}</span> <span style="font-size:.75rem;color:var(--muted)">${sc.detail}</span>`;
+}
+
+function renderCompletenessBadge(it) {
+  const cs = getCompletenessScore(it);
+  return `<span class="badge badge-${cs.complete?'buy':'watch'}">${cs.pct}% ${cs.label}</span>`;
+}
+
+function renderTransferBlock(it) {
+  const dest = it.destination?.split('→')[0]?.trim();
+  const plan = getTransferPlan(dest);
+  if (!plan || dest === 'CAN') return '';
+  return `<div style="margin-top:10px;padding:10px 14px;background:#fffbeb;border:1px solid #fbbf24;border-radius:var(--r-sm)">
+    <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">🚄 Transfer to Guangzhou from ${dest}</div>
+    <div style="font-size:.8rem;display:grid;gap:3px">
+      <div><strong>Method:</strong> ${plan.method}</div>
+      <div><strong>Duration:</strong> ${plan.duration}</div>
+      <div><strong>Family cost:</strong> ${plan.totalEstimate}</div>
+      <div><strong>Overnight:</strong> ${plan.overnight}</div>
+      <div style="color:var(--muted);font-size:.75rem">💡 ${plan.tips}</div>
+    </div>
+  </div>`;
+}
+
+function renderSurfaceBlock(it) {
+  const seg = getSurfaceSegment(it);
+  if (!seg) return '';
+  return `<div style="margin-top:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:var(--r-sm)">
+    <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">🚌 Surface Segment: ${seg.from} → ${seg.to}</div>
+    <div style="font-size:.8rem;display:grid;gap:3px">
+      <div><strong>Method:</strong> ${seg.method}</div>
+      <div><strong>Duration:</strong> ${seg.duration}</div>
+      <div><strong>Cost:</strong> ${seg.cost}</div>
+      <div style="color:var(--muted);font-size:.75rem">${seg.note}</div>
+    </div>
+  </div>`;
+}
+
 function renderItineraryCard(it) {
   const recCls = {Strong:'strong',Watch:'watch',Avoid:'avoid','Buy Now':'buy'}[it.recommendation] || 'watch';
   const isPoints = it.paymentType === 'points';
@@ -79,15 +119,34 @@ function renderItineraryCard(it) {
     <div class="itin-expanded" id="detail-${it.id}" style="display:none">
       ${renderFlightTimeline(it.outboundSegments, '✈️ Outbound')}
       ${renderFlightTimeline(it.returnSegments, '🔄 Return')}
+      ${renderSurfaceBlock(it)}
+      ${renderTransferBlock(it)}
       <div class="rc-details" style="margin-top:12px">
         <div class="rc-detail"><strong>Baggage:</strong> ${it.baggageIncluded||'—'}</div>
         <div class="rc-detail"><strong>Change:</strong> ${it.changePolicy||'—'}</div>
         <div class="rc-detail"><strong>Cancel:</strong> ${it.cancellationPolicy||'—'}</div>
-        <div class="rc-detail"><strong>Checked:</strong> ${it.lastCheckedAt||'—'}</div>
-        <div class="rc-detail"><strong>Source:</strong> ${it.dataSource||'—'}</div>
+        <div class="rc-detail"><strong>Source:</strong> ${renderSourceBadge(it)}</div>
+        <div class="rc-detail"><strong>Data:</strong> ${renderCompletenessBadge(it)}</div>
       </div>
-      <div class="rc-reason" style="margin-top:8px">💡 ${it.notes||''}</div>
-      <div style="font-size:.76rem;color:var(--muted);margin-top:6px">${it.recommendationReason}</div>
+      <div style="margin-top:10px;padding:10px 14px;background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--border)">
+        <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">💬 Verdict</div>
+        <div style="font-size:.85rem;color:var(--text)">${generateVerdict(it)}</div>
+      </div>
+      <details style="margin-top:10px">
+        <summary style="font-size:.78rem;color:var(--muted);cursor:pointer">📋 Copy search task</summary>
+        <pre style="font-size:.75rem;background:var(--bg);padding:10px;border-radius:6px;margin-top:6px;white-space:pre-wrap;border:1px solid var(--border);cursor:pointer" onclick="navigator.clipboard.writeText(this.textContent);this.style.borderColor='var(--buy)';setTimeout(()=>this.style.borderColor='',1000)">${generateSearchTask(it)}</pre>
+      </details>
+      <details style="margin-top:8px">
+        <summary style="font-size:.78rem;color:var(--muted);cursor:pointer">✅ Booking safety checklist</summary>
+        <div style="margin-top:6px;font-size:.8rem;color:var(--muted)">
+          <div>☐ Verify final price on airline site for all 4 passengers</div>
+          <div>☐ Confirm checked baggage included</div>
+          <div>☐ Confirm seat selection available</div>
+          <div>☐ Review change/cancel rules</div>
+          <div>☐ Avoid unknown OTAs for family international trips</div>
+          <div>☐ Screenshot the fare before booking</div>
+        </div>
+      </details>
     </div>
   </div>`;
 }
