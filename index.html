@@ -19,7 +19,8 @@
         <span class="chip"><span class="dot" style="background:#2563eb"></span> CAN / HKG / SZX / PVG</span>
         <span class="chip">👨‍👩‍👧‍👦 4 passengers</span>
         <span class="chip">💳 Chase UR · Amex MR · United</span>
-        <span class="chip">🕐 Updated May 2026</span>
+        <span class="chip" id="update-chip" style="cursor:pointer" onclick="refreshData()" title="Re-render from data.js">🔄 Refresh</span>
+        <span class="chip" style="cursor:pointer" onclick="showPriceEditor()" title="Edit cash prices & commit to GitHub">✏️ Edit prices</span>
         <span class="chip" style="cursor:pointer" onclick="showSettings()">⚙️ Settings</span>
         <span class="chip" style="cursor:pointer" onclick="showDataPanel()">📊 Data</span>
       </div>
@@ -177,11 +178,13 @@
     NYC/NJ → Guangzhou Flight Decision Monitor · Prices are snapshots until manually updated · Built for family travel planning
   </footer>
 
+  <script src="overrides.js"></script>
   <script src="data.js"></script>
   <script src="logic.js"></script>
   <script src="ui.js"></script>
   <script src="itineraries.js"></script>
   <script src="itinerary-ui.js"></script>
   <script src="needs-details.js"></script>
+  <script src="priceEditor.js"></script>
 </body>
 </html>

@@ -481,7 +481,10 @@ function showSettings() {
       <button onclick="this.closest('#settings-modal').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer">✕</button>
     </div>
     <div style="display:grid;gap:10px">
-      <div class="section-head" style="font-size:.9rem">Point Values (cents per point)</div>
+      <div class="section-head" style="font-size:.9rem">Live Cash Fares API</div>
+      <div class="fg" style="grid-column:1/-1"><label style="min-width:160px">Worker URL</label><input type="text" id="s-api-url" placeholder="https://flight-monitor-proxy.<you>.workers.dev" value="${(localStorage.getItem('liveApiUrl') || '').replace(/"/g, '&quot;')}" style="flex:1"></div>
+      <div style="font-size:.8rem;color:var(--muted)">Leave blank to skip live fetching. See worker/README.md to deploy.</div>
+      <div class="section-head" style="font-size:.9rem;margin-top:8px">Point Values (cents per point)</div>
       <div class="fg"><label>Chase UR</label><input type="number" id="s-chase" step="0.001" value="${s.pointValues.chaseUR}"></div>
       <div class="fg"><label>Amex MR</label><input type="number" id="s-amex" step="0.001" value="${s.pointValues.amexMR}"></div>
       <div class="fg"><label>United Miles</label><input type="number" id="s-united" step="0.001" value="${s.pointValues.unitedMiles}"></div>
@@ -522,6 +525,8 @@ function applySettings() {
   s.adjustments.SZX = parseInt($('#s-adj-szx').value) || 150;
   s.adjustments.PVG = parseInt($('#s-adj-pvg').value) || 400;
   s.adjustments.SHA = s.adjustments.PVG;
+  const apiUrl = ($('#s-api-url')?.value || '').trim().replace(/\/$/, '');
+  if (apiUrl) localStorage.setItem('liveApiUrl', apiUrl); else localStorage.removeItem('liveApiUrl');
   saveSettings(s);
   // Apply to runtime
   pointValues.chaseUR = s.pointValues.chaseUR;
@@ -593,4 +598,59 @@ function doImport(event) {
   reader.readAsText(file);
 }
 
-document.addEventListener('DOMContentLoaded', renderApp);
+async function fetchLiveCashFares(apiUrl) {
+  const cashItins = itineraries.filter(it => it.program === 'cash' && it.outboundDate && it.returnDate);
+  const results = [];
+  for (const it of cashItins) {
+    const url = `${apiUrl}/flights?origin=${it.origin}&destination=${it.destination}&departureDate=${it.outboundDate}&returnDate=${it.returnDate}&adults=${passengerConfig.adults}&children=${passengerConfig.children}`;
+    try {
+      const r = await fetch(url);
+      const j = await r.json();
+      if (j.ok && j.cheapest) {
+        const newPrice = Math.round(j.cheapest.perPerson);
+        it.cashPricePerPerson = newPrice;
+        it.liveUpdatedAt = j.fetchedAt;
+        results.push({ id: it.id, ok: true, price: newPrice });
+      } else {
+        results.push({ id: it.id, ok: false, reason: j.error || 'no offers' });
+      }
+    } catch (e) {
+      results.push({ id: it.id, ok: false, reason: String(e.message || e) });
+    }
+  }
+  return results;
+}
+
+async function refreshData() {
+  const chip = document.getElementById('update-chip');
+  const apiUrl = localStorage.getItem('liveApiUrl');
+  if (chip) {
+    chip.textContent = apiUrl ? '⏳ Fetching live fares…' : '⏳ Refreshing…';
+    chip.style.pointerEvents = 'none';
+  }
+  let summary = '';
+  if (apiUrl) {
+    const results = await fetchLiveCashFares(apiUrl);
+    const ok = results.filter(r => r.ok).length;
+    const fail = results.length - ok;
+    summary = ` · ${ok}/${results.length} live${fail ? ` (${fail} failed)` : ''}`;
+    if (fail) console.warn('Live fetch failures:', results.filter(r => !r.ok));
+  }
+  renderApp();
+  if (chip) {
+    const now = new Date();
+    const stamp = now.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    chip.textContent = `🔄 ${apiUrl ? 'Live' : 'Refreshed'} ${stamp}${summary}`;
+    chip.style.pointerEvents = '';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderApp();
+  const chip = document.getElementById('update-chip');
+  if (chip) {
+    const now = new Date();
+    const stamp = now.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    chip.textContent = `🔄 Loaded ${stamp}`;
+  }
+});

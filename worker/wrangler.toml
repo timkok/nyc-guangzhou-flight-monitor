@@ -1,0 +1,7 @@
+name = "flight-monitor-proxy"
+main = "index.js"
+compatibility_date = "2025-01-01"
+
+# Switch to "production" after you've enabled the production Amadeus app and put production keys.
+[vars]
+AMADEUS_ENV = "test"

@@ -2,6 +2,20 @@
    LOGIC LAYER — Calculations, scoring, recommendations
    ═══════════════════════════════════════════════════════ */
 
+// Capture original cash baselines (before overrides), then apply persisted overrides.
+(function applyPriceOverrides() {
+  const baselines = {};
+  for (const it of itineraries) {
+    if (it.program === 'cash') baselines[it.id] = it.cashPricePerPerson;
+  }
+  window._baselineCashPrice = baselines;
+  const ov = (typeof window !== 'undefined' && window.priceOverrides) || {};
+  for (const it of itineraries) {
+    const o = ov[it.id];
+    if (o && typeof o === 'object') Object.assign(it, o);
+  }
+})();
+
 // ─── COST CALCULATIONS ────────────────────────────────
 
 function calculateTotalCash(pricePerPerson, paxCount = passengerConfig.total) {
