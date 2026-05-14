@@ -94,7 +94,7 @@ function renderSummaryCards(enriched) {
 
     return `<div class="s-card${c.featured ? ' featured' : ''}" style="cursor:pointer" onclick="const btn = document.querySelector('[data-tab=\\'flights\\']'); if(btn) btn.click(); const el = document.getElementById('itin-${it.id}'); if(el) el.scrollIntoView({behavior:'smooth'});">
       <div class="s-card-stripe ${c.stripe}"></div>
-      <div class="s-card-label">${c.label}</div>
+      <div class="s-card-label">${c.label}${typeof itineraryIsMock === 'function' && itineraryIsMock(it) ? ' · SAMPLE' : ''}</div>
       <div class="s-card-route">${it.origin} → ${it.destination}</div>
       <div style="margin-bottom:4px"><span class="badge badge-${actionCls}">${it.recommendation}</span></div>
       <div class="s-card-price">${price}</div>
@@ -405,6 +405,10 @@ function renderApp() {
   // Shortcuts
   $('#shortcuts').innerHTML = renderShortcuts();
 
+  if (typeof renderTrustPanels === 'function') {
+    renderTrustPanels(enriched);
+  }
+
   initTabs();
   initFilters();
 }
@@ -427,7 +431,7 @@ function renderTabContent(enriched) {
 
 function initFilters() {
   $$('.filters-bar input').forEach(input => {
-    input.addEventListener('change', () => {
+    const handler = () => {
       const enriched = getEnrichedItineraries();
       const order = { 'Buy Now': 0, 'Strong': 1, 'Watch': 2, 'Avoid': 3 };
       enriched.sort((a, b) => {
@@ -440,7 +444,12 @@ function initFilters() {
       $('#comparison-table').innerHTML = renderComparisonTable(
         applyFilters(enriched, currentFilters)
       );
-    });
+      if (typeof renderTrustPanels === 'function') {
+        renderTrustPanels(enriched);
+      }
+    };
+    input.addEventListener('change', handler);
+    input.addEventListener('input', handler);
   });
 }
 

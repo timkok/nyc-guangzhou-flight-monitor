@@ -169,8 +169,10 @@ function getRecommendation(itinerary) {
   const stops = itinerary.stops || 0;
   const dest = itinerary.destination.split('→')[0].trim();
   const directCANPrice = getDirectCANPrice();
+  const hardNos = typeof checkHardNos === 'function' ? checkHardNos(itinerary) : [];
 
   // AVOID checks first
+  if (hardNos.length > 0) return { label: 'Avoid', class: 'avoid', reason: hardNos[0].reason };
   if (dur > 32) return { label: 'Avoid', class: 'avoid', reason: 'Duration > 32h' };
 
   if (cashPrice != null) {
@@ -215,8 +217,8 @@ function getRecommendation(itinerary) {
         return { label: 'Avoid', class: 'avoid', reason: 'HKG saves < $150' };
       }
     }
-    if ((dest === 'PVG' || dest === 'SHA') && adjustedCost && directCANPrice && (directCANPrice - adjustedCost) < 300) {
-      return { label: 'Avoid', class: 'avoid', reason: 'PVG/SHA saves < $300' };
+    if ((dest === 'PVG' || dest === 'SHA') && adjustedCost && directCANPrice && (directCANPrice - adjustedCost) < 400) {
+      return { label: 'Avoid', class: 'avoid', reason: 'PVG/SHA saves < $400' };
     }
   }
 
