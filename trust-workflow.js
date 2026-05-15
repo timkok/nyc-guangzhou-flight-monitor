@@ -71,6 +71,8 @@ const SEARCH_MISSIONS = [
   }
 ];
 
+const TRUST_OVERRIDES_KEY = 'flightTrustOverrides';
+
 function trustTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -87,8 +89,73 @@ function trustDaysSince(value) {
   return (Date.now() - date.getTime()) / 86400000;
 }
 
+function loadTrustOverrides() {
+  try {
+    return JSON.parse(localStorage.getItem(TRUST_OVERRIDES_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveTrustOverrides(overrides) {
+  localStorage.setItem(TRUST_OVERRIDES_KEY, JSON.stringify(overrides));
+}
+
+function getTrustOverride(itId) {
+  return loadTrustOverrides()[itId] || {};
+}
+
+function updateTrustOverride(itId, patch) {
+  const all = loadTrustOverrides();
+  all[itId] = {
+    ...(all[itId] || {}),
+    ...patch,
+    updatedAt: new Date().toISOString()
+  };
+  saveTrustOverrides(all);
+  refreshData?.();
+}
+
+function updateVerificationItem(itId, key, checked) {
+  const current = getTrustOverride(itId);
+  updateTrustOverride(itId, {
+    verification: {
+      ...(current.verification || {}),
+      [key]: checked
+    }
+  });
+}
+
+function saveProofOverride(itId, proof) {
+  updateTrustOverride(itId, {
+    proof: {
+      ...proof,
+      observedAt: proof.observedAt || new Date().toISOString()
+    },
+    dataStatus: 'Manual',
+    isMock: false
+  });
+}
+
+function applyTrustOverride(it) {
+  const override = getTrustOverride(it.id);
+  return {
+    ...it,
+    ...override,
+    proof: {
+      ...(it.proof || {}),
+      ...(override.proof || {})
+    },
+    verification: {
+      ...(it.verification || {}),
+      ...(override.verification || {})
+    }
+  };
+}
+
 function getProof(it) {
-  return it.proof || {
+  const merged = applyTrustOverride(it);
+  return merged.proof || {
     screenshotUrl: '',
     sourceUrl: '',
     observedAt: '',
@@ -99,21 +166,22 @@ function getProof(it) {
 }
 
 function getVerificationState(it) {
-  const proof = getProof(it);
-  const hasFlightNumbers = [...(it.outboundSegments || []), ...(it.returnSegments || [])].some(seg => seg.flightNumber);
-  const hasDates = Boolean(it.outboundDate && it.returnDate);
-  const hasPrice = Boolean(it.totalCashForFamily || it.totalPointsForFamily || it.cashPricePerPerson || it.pointsPerPerson);
+  const merged = applyTrustOverride(it);
+  const proof = getProof(merged);
+  const hasFlightNumbers = [...(merged.outboundSegments || []), ...(merged.returnSegments || [])].some(seg => seg.flightNumber);
+  const hasDates = Boolean(merged.outboundDate && merged.returnDate);
+  const hasPrice = Boolean(merged.totalCashForFamily || merged.totalPointsForFamily || merged.cashPricePerPerson || merged.pointsPerPerson);
   const state = {
-    flightNumbersConfirmed: Boolean(it.verification?.flightNumbersConfirmed ?? hasFlightNumbers),
-    datesConfirmed: Boolean(it.verification?.datesConfirmed ?? hasDates),
-    priceForFourConfirmed: Boolean(it.verification?.priceForFourConfirmed ?? false),
-    baggageConfirmed: Boolean(it.verification?.baggageConfirmed ?? Boolean(it.baggageIncluded)),
-    seatSelectionConfirmed: Boolean(it.verification?.seatSelectionConfirmed ?? false),
-    sameTicketConfirmed: Boolean(it.verification?.sameTicketConfirmed ?? it.sameTicket),
-    awardSeatsConfirmed: Boolean(it.verification?.awardSeatsConfirmed ?? (it.paymentType === 'cash' || it.awardSeatsAvailable >= 4)),
-    transferPlanConfirmed: Boolean(it.verification?.transferPlanConfirmed ?? it.destination === 'CAN'),
-    airlineDirectPriceChecked: Boolean(it.verification?.airlineDirectPriceChecked ?? Boolean(it.links?.airlineDirect)),
-    screenshotOrSourceSaved: Boolean(it.verification?.screenshotOrSourceSaved ?? Boolean(proof.screenshotUrl || proof.sourceUrl))
+    flightNumbersConfirmed: Boolean(merged.verification?.flightNumbersConfirmed ?? hasFlightNumbers),
+    datesConfirmed: Boolean(merged.verification?.datesConfirmed ?? hasDates),
+    priceForFourConfirmed: Boolean(merged.verification?.priceForFourConfirmed ?? false),
+    baggageConfirmed: Boolean(merged.verification?.baggageConfirmed ?? Boolean(merged.baggageIncluded)),
+    seatSelectionConfirmed: Boolean(merged.verification?.seatSelectionConfirmed ?? false),
+    sameTicketConfirmed: Boolean(merged.verification?.sameTicketConfirmed ?? merged.sameTicket),
+    awardSeatsConfirmed: Boolean(merged.verification?.awardSeatsConfirmed ?? (merged.paymentType === 'cash' || merged.awardSeatsAvailable >= 4)),
+    transferPlanConfirmed: Boolean(merged.verification?.transferPlanConfirmed ?? merged.destination === 'CAN'),
+    airlineDirectPriceChecked: Boolean(merged.verification?.airlineDirectPriceChecked ?? Boolean(merged.links?.airlineDirect)),
+    screenshotOrSourceSaved: Boolean(merged.verification?.screenshotOrSourceSaved ?? Boolean(proof.screenshotUrl || proof.sourceUrl))
   };
   if (!hasPrice) state.priceForFourConfirmed = false;
   return state;
@@ -143,19 +211,21 @@ function itineraryComplete(it) {
 }
 
 function itineraryIsMock(it) {
-  if (it.isMock === false || it.dataStatus === 'Manual' || it.dataStatus === 'Verified') return false;
-  return it.isMock === true || !it.proof;
+  const merged = applyTrustOverride(it);
+  if (merged.isMock === false || merged.dataStatus === 'Manual' || merged.dataStatus === 'Verified') return false;
+  return merged.isMock === true || !merged.proof;
 }
 
 function itineraryStatusBadges(it) {
-  const proof = getProof(it);
-  const observedAt = proof.observedAt || it.lastCheckedAt;
+  const merged = applyTrustOverride(it);
+  const proof = getProof(merged);
+  const observedAt = proof.observedAt || merged.lastCheckedAt;
   const statuses = [];
-  if (itineraryIsMock(it)) statuses.push('Mock');
-  if (it.dataSource || it.lastCheckedAt || it.dataStatus === 'Manual') statuses.push('Manual');
-  if (observedAt && trustDaysSince(observedAt) <= 1 && !itineraryNeedsDetails(it)) statuses.push('Verified');
+  if (itineraryIsMock(merged)) statuses.push('Mock');
+  if (merged.dataSource || merged.lastCheckedAt || merged.dataStatus === 'Manual') statuses.push('Manual');
+  if (observedAt && trustDaysSince(observedAt) <= 1 && !itineraryNeedsDetails(merged)) statuses.push('Verified');
   if (!observedAt || trustDaysSince(observedAt) > 3) statuses.push('Expired');
-  if (itineraryNeedsDetails(it)) statuses.push('Needs Details');
+  if (itineraryNeedsDetails(merged)) statuses.push('Needs Details');
   return [...new Set(statuses)];
 }
 
@@ -215,13 +285,97 @@ function getBookingChannelRisk(it) {
 }
 
 function renderItineraryTrustBlock(it) {
+  const merged = applyTrustOverride(it);
   return `<div class="trust-block">
-    <div class="trust-row">${renderTrustBadges(it)} ${renderVerificationProgress(it)}</div>
+    <div class="trust-row">${renderTrustBadges(merged)} ${renderVerificationProgress(merged)}</div>
     <div class="trust-row">
-      <div class="proof-box"><strong>Booking channel</strong><span>${getBookingChannel(it)} · ${getBookingChannelRisk(it)} risk</span></div>
-      ${renderProofBlock(it)}
+      <div class="proof-box"><strong>Booking channel</strong><span>${getBookingChannel(merged)} · ${getBookingChannelRisk(merged)} risk</span></div>
+      ${renderProofBlock(merged)}
+    </div>
+    <details class="trust-editor">
+      <summary>Edit verification and proof</summary>
+      ${renderTrustChecklist(merged)}
+      <div class="mission-actions">
+        <button class="btn-sm" onclick="openProofEditor('${merged.id}')">Save proof</button>
+        <button class="btn-sm" onclick="markItineraryCheckedToday('${merged.id}')">Mark checked today</button>
+      </div>
+    </details>
+  </div>`;
+}
+
+function renderTrustChecklist(it) {
+  const state = getVerificationState(it);
+  return `<div class="trust-checklist">${TRUST_CHECKLIST.map(([key, label]) => `
+    <label>
+      <input type="checkbox" ${state[key] ? 'checked' : ''} onchange="updateVerificationItem('${it.id}', '${key}', this.checked)">
+      <span>${label}</span>
+    </label>
+  `).join('')}</div>`;
+}
+
+function markItineraryCheckedToday(itId) {
+  const it = (typeof ITINERARIES !== 'undefined' ? ITINERARIES : []).find(item => item.id === itId);
+  const current = getTrustOverride(itId);
+  const sourceUrl = current.proof?.sourceUrl || it?.links?.airlineDirect || it?.links?.googleFlights || '';
+  saveProofOverride(itId, {
+    ...(current.proof || {}),
+    sourceUrl,
+    observedAt: new Date().toISOString(),
+    observedPlatform: current.proof?.observedPlatform || it?.dataSource || it?.airline || '',
+    observedPrice: current.proof?.observedPrice || it?.cashPricePerPerson || null,
+    notes: current.proof?.notes || 'Marked checked in dashboard.'
+  });
+}
+
+function openProofEditor(itId) {
+  const it = (typeof ITINERARIES !== 'undefined' ? ITINERARIES : []).find(item => item.id === itId);
+  const proof = getProof(it || { id: itId });
+  const modal = document.createElement('div');
+  modal.className = 'trust-modal';
+  modal.innerHTML = `<div class="trust-modal-card">
+    <div class="trust-modal-head">
+      <h3>Save proof: ${it?.title || itId}</h3>
+      <button onclick="this.closest('.trust-modal').remove()">x</button>
+    </div>
+    <label>Source URL<input id="proof-source-url" value="${escapeAttr(proof.sourceUrl || it?.links?.airlineDirect || it?.links?.googleFlights || '')}"></label>
+    <label>Screenshot URL<input id="proof-screenshot-url" value="${escapeAttr(proof.screenshotUrl || '')}"></label>
+    <label>Observed platform<input id="proof-platform" value="${escapeAttr(proof.observedPlatform || it?.dataSource || '')}"></label>
+    <label>Observed price<input id="proof-price" type="number" value="${proof.observedPrice || it?.cashPricePerPerson || ''}"></label>
+    <label>Observed at<input id="proof-observed-at" type="datetime-local" value="${toDatetimeLocal(proof.observedAt || new Date().toISOString())}"></label>
+    <label>Notes<textarea id="proof-notes">${escapeHtml(proof.notes || '')}</textarea></label>
+    <div class="mission-actions">
+      <button class="btn-sm primary" onclick="saveProofFromModal('${itId}')">Save proof</button>
+      <button class="btn-sm" onclick="this.closest('.trust-modal').remove()">Cancel</button>
     </div>
   </div>`;
+  modal.addEventListener('click', event => { if (event.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+}
+
+function saveProofFromModal(itId) {
+  saveProofOverride(itId, {
+    sourceUrl: document.getElementById('proof-source-url')?.value || '',
+    screenshotUrl: document.getElementById('proof-screenshot-url')?.value || '',
+    observedPlatform: document.getElementById('proof-platform')?.value || '',
+    observedPrice: Number(document.getElementById('proof-price')?.value) || null,
+    observedAt: new Date(document.getElementById('proof-observed-at')?.value || Date.now()).toISOString(),
+    notes: document.getElementById('proof-notes')?.value || ''
+  });
+  document.querySelector('.trust-modal')?.remove();
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
+}
+
+function toDatetimeLocal(value) {
+  const date = trustParseDate(value) || new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 function getVisibleItinerariesForTrust(enriched) {
@@ -302,6 +456,7 @@ function renderSearchMissions() {
       </div>
       <div class="mission-actions">
         <button class="btn-sm" onclick="copyMissionText('${mission.id}');this.textContent='Copied';setTimeout(()=>this.textContent='Copy',1200)">Copy</button>
+        <button class="btn-sm" onclick="markMissionChecked('${mission.id}')">${checked ? 'Recheck done' : 'Mark checked'}</button>
         <a class="btn-sm" target="_blank" rel="noopener" href="${mission.url}" onclick="markMissionChecked('${mission.id}')">Open search</a>
       </div>
     </div>`;
@@ -389,6 +544,7 @@ function trustExportPayload() {
     passengerConfig,
     adjustments: typeof ADJUSTMENTS !== 'undefined' ? ADJUSTMENTS : {},
     itineraries: enriched,
+    trustOverrides: loadTrustOverrides(),
     searchMissions: SEARCH_MISSIONS,
     pasteParserResult: JSON.parse(localStorage.getItem('pasteParserResult') || 'null')
   };
@@ -400,12 +556,15 @@ function exportFullJson() {
 
 function exportVisibleJson() {
   const visible = getVisibleItinerariesForTrust(getEnrichedItineraries?.() || []);
-  downloadTextFile('flight-monitor-visible.json', JSON.stringify(visible, null, 2), 'application/json');
+  downloadTextFile('flight-monitor-visible.json', JSON.stringify(visible.map(applyTrustOverride), null, 2), 'application/json');
 }
 
 function exportFamilySummary() {
-  const visible = getVisibleItinerariesForTrust(getEnrichedItineraries?.() || []);
-  const text = visible.map(it => `${it.title}: ${it.recommendation?.label || it.recommendation}, ${it.adjustedTotalForFamily ? '$' + it.adjustedTotalForFamily.toLocaleString() + ' adjusted for 4' : 'points option'}, family score ${it.familyScore}/10. ${it.recommendationReason || ''}`).join('\n');
+  const visible = getVisibleItinerariesForTrust(getEnrichedItineraries?.() || []).map(applyTrustOverride);
+  const text = visible.map(it => {
+    const progress = getVerificationProgress(it);
+    return `${it.title}: ${it.recommendation?.label || it.recommendation}, ${it.adjustedTotalForFamily ? '$' + it.adjustedTotalForFamily.toLocaleString() + ' adjusted for 4' : 'points option'}, family score ${it.familyScore}/10, verification ${progress.checked}/${progress.total}. ${proofSummary(it)}`;
+  }).join('\n');
   downloadTextFile('flight-monitor-family-summary.txt', text);
 }
 
@@ -415,7 +574,7 @@ function exportSearchMissionsText() {
 }
 
 function exportBookingChecklistText() {
-  const visible = getVisibleItinerariesForTrust(getEnrichedItineraries?.() || []);
+  const visible = getVisibleItinerariesForTrust(getEnrichedItineraries?.() || []).map(applyTrustOverride);
   const text = visible.map(it => {
     const state = getVerificationState(it);
     const lines = TRUST_CHECKLIST.map(([key, label]) => `- [${state[key] ? 'x' : ' '}] ${label}`).join('\n');

@@ -101,6 +101,19 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .trust-track div{height:100%;border-radius:inherit;background:var(--buy)}
 .proof-box{display:grid;gap:3px;min-width:220px;font-size:.78rem;color:var(--muted)}
 .proof-box strong{color:var(--text)}
+.trust-editor{width:100%;font-size:.8rem}
+.trust-editor summary{cursor:pointer;color:var(--muted);font-weight:600}
+.trust-checklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}
+.trust-checklist label{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 8px;color:var(--muted);font-size:.76rem}
+.trust-checklist input{accent-color:var(--buy)}
+.trust-modal{position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:20px}
+.trust-modal-card{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:20px;max-width:560px;width:100%;display:grid;gap:10px}
+.trust-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.trust-modal-head h3{font-size:1rem}
+.trust-modal-head button{border:none;background:var(--bg);border-radius:999px;width:28px;height:28px;cursor:pointer}
+.trust-modal-card label{display:grid;gap:4px;font-size:.78rem;font-weight:600;color:var(--muted)}
+.trust-modal-card input,.trust-modal-card textarea{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);padding:8px;font:inherit;color:var(--text)}
+.trust-modal-card textarea{min-height:90px;resize:vertical}
 .mission-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .mission-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);padding:14px;display:grid;gap:10px;align-content:space-between}
 .mission-card h4{font-size:.95rem;margin:6px 0}
@@ -254,6 +267,7 @@ tbody tr:hover{background:rgba(79,70,229,.03)}
   table{font-size:.74rem}
   thead th,tbody td{padding:8px 6px}
   .trust-admin-grid{grid-template-columns:1fr}
+  .trust-checklist{grid-template-columns:1fr}
 }
 
 /* FLIGHT TIMELINE */
