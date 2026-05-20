@@ -36,6 +36,12 @@
       <div class="summary-grid" id="summary-cards"></div>
     </section>
 
+    <!-- DATA HEALTH -->
+    <section class="section">
+      <div class="section-head"><span class="icon">🧪</span> Data Health</div>
+      <div id="data-health-panel"></div>
+    </section>
+
     <!-- FILTER BAR HEADER -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:12px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -91,6 +97,13 @@
         <label for="f-bookable">4 seats ⓘ</label>
       </div>
     </div>
+
+    <!-- PASTE PARSER -->
+    <section class="section">
+      <div class="section-head"><span class="icon">🧾</span> Admin Paste Parser</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Paste raw flight result text. Parsed fields and fallback source notes are saved locally in this browser.</p>
+      <div id="trust-admin-panel"></div>
+    </section>
 
     <!-- TABS -->
     <div class="tabs">
@@ -209,9 +222,31 @@
 
     <!-- SEARCH SHORTCUTS -->
     <section class="section">
-      <div class="section-head"><span class="icon">🔗</span> Search Shortcuts</div>
-      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Recheck fare, baggage, connection protection, and refund rules before buying.</p>
+      <div class="section-head"><span class="icon">🎯</span> Search Missions & Exports</div>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px">Prioritized daily checks. Mission completion is stored in localStorage by date.</p>
       <div class="shortcuts-grid" id="shortcuts"></div>
+    </section>
+
+    <!-- HARD-NO RULES -->
+    <section class="section">
+      <div class="section-head"><span class="icon">⛔</span> Hard-No Rules</div>
+      <div class="hard-no-grid">
+        <div>2+ stops with kids unless savings are huge</div>
+        <div>Separate tickets with same-day international connection</div>
+        <div>Overnight airport stay with children</div>
+        <div>HKG if savings &lt; $150</div>
+        <div>PVG/SHA if savings &lt; $400</div>
+        <div>Award itinerary with &lt;4 seats unless Mixed Strategy</div>
+        <div>Points redemption below 1.2 cpp</div>
+        <div>Basic Economy without seat selection clarity</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="warn-box">
+        <h3>Booking channel risk warning</h3>
+        <p>For complex family international trips, prefer airline direct when price difference is small. Always verify final price, baggage, seat selection, and change rules before booking.</p>
+      </div>
     </section>
 
   </main>
@@ -223,6 +258,7 @@
   <script src="overrides.js"></script>
   <script src="data.js"></script>
   <script src="logic.js"></script>
+  <script src="trust-workflow.js"></script>
   <script src="ui.js"></script>
   <script src="itineraries.js"></script>
   <script src="itinerary-ui.js"></script>

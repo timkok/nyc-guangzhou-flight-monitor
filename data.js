@@ -1046,7 +1046,7 @@ const DEFAULT_SETTINGS = {
     hkgMinSavings: 150,
     hkgStrongSavings: 200,
     hkgBuySavings: 250,
-    pvgMinSavings: 300,
+    pvgMinSavings: 400,
     pvgStrongSavings: 400,
     maxDuration: 32,
     minCPP: 1.2,
@@ -1089,9 +1089,12 @@ const HARD_NO_RULES = [
   { id: 'pvg_low_savings', test: it => {
       if (it.destination !== 'PVG' && it.destination !== 'SHA') return false;
       const savings = calculateSavingsVsCAN(it);
-      return savings !== null && savings < 300;
-    }, reason: 'PVG/SHA saves < $300 vs CAN' 
+      return savings !== null && savings < 400;
+    }, reason: 'PVG/SHA saves < $400 vs CAN' 
   },
+  { id: 'separate_same_day', test: it => it.sameTicket === false && it.sameDayInternationalConnection === true, reason: 'Separate tickets with same-day international connection' },
+  { id: 'overnight_with_children', test: it => it.riskChips && it.riskChips.some(r => /overnight/i.test(r)), reason: 'Overnight airport stay with children' },
+  { id: 'basic_economy_unclear_seats', test: it => /basic/i.test(it.fareBrand || '') && !it.seatSelectionConfirmed, reason: 'Basic Economy without seat selection clarity' },
   { id: 'few_award_no_mixed', test: it => {
       if (it.paymentType === 'cash') return false;
       return it.awardSeatsAvailable !== null && it.awardSeatsAvailable < 4;

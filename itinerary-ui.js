@@ -120,6 +120,7 @@ function renderItineraryCard(it) {
       <div class="rc-tags">
         <span class="badge badge-${recCls}">${it.recommendation}</span>
         ${payBadge} ${awardBadge} ${cppBadge}
+        ${typeof renderTrustBadges === 'function' ? renderTrustBadges(it) : ''}
         <span class="expand-icon" id="expand-${it.id}">▼</span>
       </div>
     </div>
@@ -173,6 +174,7 @@ function renderItineraryCard(it) {
         <div class="rc-detail"><strong>Source:</strong> ${renderSourceBadge(it)}</div>
         <div class="rc-detail"><strong>Data:</strong> ${renderCompletenessBadge(it)}</div>
       </div>
+      ${typeof renderItineraryTrustBlock === 'function' ? renderItineraryTrustBlock(it) : ''}
       <div style="margin-top:10px;padding:10px 14px;background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--border)">
         <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">💬 Verdict</div>
         <div style="font-size:.85rem;color:var(--text)">${generateVerdict(it)}</div>
@@ -249,15 +251,26 @@ function filterItineraries(list) {
   const oneStopAllowed = document.getElementById('f-1stop')?.checked ?? true;
   const familyOnly = document.getElementById('f-family')?.checked ?? false;
   const bookableOnly = document.getElementById('f-bookable')?.checked ?? false;
-
+  const maxPrice = parseInt(document.getElementById('f-max-price')?.value, 10) || null;
+  const maxDuration = parseInt(document.getElementById('f-max-dur')?.value, 10) || null;
   return list.filter(it => {
     if (window.filterOutboundDate && it.outboundDate !== window.filterOutboundDate) return false;
     if (window.filterReturnDate && it.returnDate !== window.filterReturnDate) return false;
-    const dest = it.destination?.split('→')[0]?.trim();
-    if (!includeHKG && dest === 'HKG') return false;
-    if (!includePVG && (dest === 'PVG' || dest === 'SHA')) return false;
-    if (nonstopOnly && it.stops > 0) return false;
-    if (!oneStopAllowed && it.stops > 1) return false;
+
+    const adjustedPerPerson = it.adjustedTotalForFamily ? it.adjustedTotalForFamily / (it.passengerCount || 4) : it.cashPricePerPerson;
+    const maxTripHours = Math.max(
+      (it.totalDurationMinutesOutbound || 0) / 60,
+      (it.totalDurationMinutesReturn || 0) / 60,
+      it.totalDurationHours || 0
+    );
+    if (maxPrice && adjustedPerPerson && adjustedPerPerson > maxPrice) return false;
+    if (maxDuration && maxTripHours && maxTripHours > maxDuration) return false;
+
+    const dest = it.destination?.split('→')[0]?.trim() || it.destination;
+    if (!includeHKG && (dest === 'HKG' || it.destination === 'HKG')) return false;
+    if (!includePVG && (dest === 'PVG' || dest === 'SHA' || it.destination === 'PVG' || it.destination === 'SHA')) return false;
+    if (nonstopOnly && (it.stops > 0 || it.stopsOutbound > 0)) return false;
+    if (!oneStopAllowed && (it.stops > 1 || it.stopsOutbound > 1)) return false;
     if (familyOnly && it.riskLevel === 'High') return false;
     if (bookableOnly && it.paymentType === 'points' && !it.familyBookable) return false;
     return true;
@@ -301,4 +314,12 @@ document.addEventListener('DOMContentLoaded', () => {
   renderItinerariesTab();
   document.getElementById('itin-sort')?.addEventListener('change', renderItinerariesTab);
   document.getElementById('itin-group')?.addEventListener('change', renderItinerariesTab);
+<<<<<<< HEAD
+=======
+  
+  ['f-max-price', 'f-max-dur', 'f-hkg', 'f-pvg', 'f-nonstop', 'f-1stop', 'f-family', 'f-bookable'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', renderItinerariesTab);
+    document.getElementById(id)?.addEventListener('input', renderItinerariesTab);
+  });
+>>>>>>> origin/main
 });
