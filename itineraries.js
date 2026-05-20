@@ -10,7 +10,7 @@ function getLayoverQuality(mins){
   if(mins<=720)return{label:"Very Long",cls:"avoid",icon:"😴"};
   return{label:"Overnight",cls:"avoid",icon:"🌙"};
 }
-function fmtDur(m){const h=Math.floor(m/60);const mm=m%60;return h+"h"+(mm>0?mm+"m":"");}
+function fmtDur(m){if(!Number.isFinite(m))return"Unknown";const h=Math.floor(m/60);const mm=m%60;return h+"h"+(mm>0?mm+"m":"");}
 function fmtTime(t){return t||"—";}
 
 // ─── SOURCE CONFIDENCE ──────────────────────────────
@@ -40,7 +40,7 @@ function getCompletenessScore(it) {
   if (hasLink) score++;
   const max = fields.length + 6;
   const pct = Math.round(score / max * 100);
-  return { score, max, pct, complete: pct >= 80, label: pct >= 80 ? 'Complete' : 'Needs details' };
+  return { score, max, pct, complete: pct >= 80, label: pct >= 80 ? 'Complete' : 'Needs verification' };
 }
 
 // ─── TRANSFER PLANS ─────────────────────────────────

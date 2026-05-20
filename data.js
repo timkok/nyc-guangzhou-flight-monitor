@@ -818,24 +818,31 @@ function generateHeatmapData() {
         let best = null;
         let minPrice = Infinity;
         for (const it of matches) {
-          const enriched = enrichItinerary(it);
           let price = 0;
           if (it.paymentType === 'points') {
-            price = enriched.awardCost ? enriched.awardCost.totalCost : Infinity;
+            const pointValue = it.pointsProgram && it.pointsProgram.toLowerCase().includes('united') ? pointValues.unitedMiles
+              : it.pointsProgram && it.pointsProgram.toLowerCase().includes('amex') ? pointValues.amexMR
+              : pointValues.chaseUR;
+            price = ((it.pointsPerPerson || 0) * passengerConfig.total * pointValue) + ((it.taxesPerPerson || 0) * passengerConfig.total) + (it.groundTransferCost || 0);
           } else {
-            price = (enriched.cashPricePerPerson || it.cashPricePerPerson || 0) * passengerConfig.total;
+            price = (it.cashPricePerPerson || 0) * passengerConfig.total;
           }
           if (price < minPrice) {
             minPrice = price;
-            best = enriched;
+            best = it;
           }
         }
         if (best && minPrice !== Infinity) {
+          let rec = 'watch';
+          const pricePerPerson = minPrice / passengerConfig.total;
+          if (pricePerPerson < 1200) rec = 'buy';
+          else if (pricePerPerson < 1350) rec = 'strong';
+          else if (pricePerPerson > 1500) rec = 'avoid';
           row.push({
             price: minPrice,
-            pricePerPerson: minPrice / passengerConfig.total,
+            pricePerPerson,
             routeType: `${best.origin}→${best.destination}`,
-            rec: best.recommendation ? best.recommendation.label.toLowerCase() : 'watch',
+            rec,
             status: best.verificationStatus || 'Verified',
             verifiedAt: best.lastCheckedAt || '2026-05-19'
           });

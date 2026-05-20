@@ -115,7 +115,8 @@ function evaluateAwardAvailability(itinerary) {
 
 // ─── NEW SCORING ENGINE (0-100 SCALE) ─────────────────
 
-function calculateDetailedScores(it, weights) {
+function calculateDetailedScores(it, weights = { price: 30, duration: 20, family: 25, risk: 20, points: 5 }) {
+  weights = weights || { price: 30, duration: 20, family: 25, risk: 20, points: 5 };
   // 1. Price Score (0-100)
   let totalCost = 0;
   if (it.paymentType === 'points') {
@@ -529,18 +530,21 @@ function applyFilters(enriched, filters) {
   return enriched.filter(it => {
     if (window.filterOutboundDate && it.outboundDate !== window.filterOutboundDate) return false;
     if (window.filterReturnDate && it.returnDate !== window.filterReturnDate) return false;
-    // Price filter (compare per-person cash or cash equivalent cost)
     if (filters.maxPrice) {
-      const ppp = it.paymentType === 'points' ? (it.totalCostCalculated / 4) : it.cashPricePerPerson;
+      const ppp = it.paymentType === 'points' ? (it.totalCostCalculated / 4) : (it.adjustedPerPerson || it.cashPricePerPerson);
       if (ppp && ppp > filters.maxPrice) return false;
     }
-    if (filters.maxDuration && it.totalHours > filters.maxDuration) return false;
+    if (filters.maxDuration && (it.totalHours || it.totalDurationHours) > filters.maxDuration) return false;
+    if (!filters.includeAlt && it.destination !== 'CAN') return false;
     if (!filters.includeHKG && (it.destination.includes('HKG'))) return false;
+    if (!filters.includeSZX && (it.destination.includes('SZX'))) return false;
     if (!filters.includePVG && (it.destination.includes('PVG') || it.destination.includes('SHA'))) return false;
     if (filters.nonstopOnly && it.stops > 0) return false;
     if (!filters.oneStopAllowed && it.stops > 1) return false;
     if (filters.familyFriendlyOnly && it.familyScore < 7) return false;
-    if (filters.familyBookableOnly && it.paymentType === 'points' && !it.availability.bookable) return false;
+    if (filters.familyBookableOnly && (it.paymentType === 'points' || it.program !== 'cash') && !it.availability.bookable) return false;
+    if (filters.pointsOnly && (it.paymentType !== 'points' && it.program === 'cash')) return false;
+    if (filters.cashOnly && (it.paymentType === 'points' || it.program !== 'cash')) return false;
     return true;
   });
 }

@@ -232,19 +232,19 @@ function renderNeedsDetailsCard(nd) {
     
     <div style="margin:10px 0;display:grid;grid-template-columns:1fr;gap:10px">
       <div>
-        <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">📋 Checklist to complete info:</div>
+        <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">Checklist to complete info:</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:2px">${listItems}</div>
       </div>
     </div>
     
     <div style="margin:10px 0;padding:10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
-      <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">📋 Next search action:</div>
+      <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">Next action:</div>
       <div style="font-size:.82rem">${nd.action}</div>
     </div>
     
     <div class="rc-actions" style="flex-wrap:wrap;margin-top:8px">
-      <a href="https://www.google.com/travel/flights" target="_blank" class="btn-sm">🔍 Open Google Flights</a>
-      <span class="btn-sm" style="cursor:pointer" onclick="navigator.clipboard.writeText('${nd.action.replace(/'/g,"\\'")}');this.textContent='✓ Copied!';setTimeout(()=>this.textContent='📋 Copy search task',1500)">📋 Copy search task</span>
+      <a href="https://www.google.com/travel/flights" target="_blank" class="btn-sm">Google Flights</a>
+      <span class="btn-sm" style="cursor:pointer" onclick="navigator.clipboard.writeText('${nd.action.replace(/'/g,"\\'")}');this.textContent='Copied';setTimeout(()=>this.textContent='Copy search task',1500)">Copy search task</span>
       ${convertBtn}
       <button class="btn-sm" style="border-color:var(--avoid);color:var(--avoid);margin-left:auto" onclick="removeQueueItem('${nd.id}')">✕ Delete</button>
     </div>

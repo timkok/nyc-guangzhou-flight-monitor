@@ -27,14 +27,14 @@ function renderFlightTimeline(segments, label) {
 function renderItineraryLinks(it) {
   const links = it.links || {};
   const btns = [];
-  if (links.googleFlights) btns.push(`<a href="${links.googleFlights}" target="_blank" class="btn-sm">🔍 Google Flights</a>`);
-  if (links.airlineDirect) btns.push(`<a href="${links.airlineDirect}" target="_blank" class="btn-sm">✈️ ${it.airline}</a>`);
-  if (links.united) btns.push(`<a href="${links.united}" target="_blank" class="btn-sm">🇺🇸 United</a>`);
-  if (links.chase) btns.push(`<a href="${links.chase}" target="_blank" class="btn-sm">💳 Chase</a>`);
-  if (links.amex) btns.push(`<a href="${links.amex}" target="_blank" class="btn-sm">💎 Amex</a>`);
-  if (links.aeroplan) btns.push(`<a href="${links.aeroplan}" target="_blank" class="btn-sm">🍁 Aeroplan</a>`);
-  if (links.cathayAsiaMiles) btns.push(`<a href="${links.cathayAsiaMiles}" target="_blank" class="btn-sm">🐉 Asia Miles</a>`);
-  if (btns.length === 0) btns.push(`<span class="btn-sm" onclick="navigator.clipboard.writeText('${it.origin} to ${it.destination} ${it.outboundDate}');this.textContent='Copied!'" style="cursor:pointer">📋 Copy search</span>`);
+  if (links.googleFlights) btns.push(`<a href="${links.googleFlights}" target="_blank" class="btn-sm">Google Flights</a>`);
+  if (links.airlineDirect) btns.push(`<a href="${links.airlineDirect}" target="_blank" class="btn-sm">${it.airline || 'Airline'}</a>`);
+  if (links.united) btns.push(`<a href="${links.united}" target="_blank" class="btn-sm">United</a>`);
+  if (links.chase) btns.push(`<a href="${links.chase}" target="_blank" class="btn-sm">Chase</a>`);
+  if (links.amex) btns.push(`<a href="${links.amex}" target="_blank" class="btn-sm">Amex</a>`);
+  if (links.aeroplan) btns.push(`<a href="${links.aeroplan}" target="_blank" class="btn-sm">Aeroplan</a>`);
+  if (links.cathayAsiaMiles) btns.push(`<a href="${links.cathayAsiaMiles}" target="_blank" class="btn-sm">Asia Miles</a>`);
+  if (btns.length === 0) btns.push(`<span class="btn-sm" onclick="navigator.clipboard.writeText('${it.origin} to ${it.destination} ${it.outboundDate}');this.textContent='Copied';" style="cursor:pointer">Copy search</span>`);
   return btns.join('');
 }
 
@@ -86,82 +86,58 @@ function getScoreColor(score) {
 }
 
 function renderItineraryCard(it) {
-  const recCls = {Strong:'strong',Watch:'watch',Avoid:'avoid','Buy Now':'buy'}[it.recommendation] || 'watch';
-  const isPoints = it.paymentType === 'points';
+  const recLabel = it.recommendation?.label || it.recommendation || 'Watch';
+  const recCls = {Strong:'strong',Watch:'watch',Avoid:'avoid','Buy Now':'buy'}[recLabel] || 'watch';
+  const isPoints = it.paymentType === 'points' || (it.program && it.program !== 'cash');
   const priceDisplay = isPoints
-    ? `${(it.pointsPerPerson/1000).toFixed(0)}k pts/pp`
-    : `$${it.cashPricePerPerson?.toLocaleString()}/pp`;
-  const adjTotal = it.adjustedTotal ? `$${it.adjustedTotal.toLocaleString()}` : '—';
+    ? (it.pointsPerPerson ? `${(it.pointsPerPerson/1000).toFixed(0)}k pts/pp` : 'Unknown')
+    : (it.cashPricePerPerson ? `$${it.cashPricePerPerson.toLocaleString()}/pp` : 'Unknown');
+  const adjustedTotalValue = it.adjustedTotalForFamily || it.adjustedTotal || it.totalCostCalculated;
+  const adjTotal = adjustedTotalValue ? `$${Math.round(adjustedTotalValue).toLocaleString()}` : 'Unknown';
   const totalDisplay = isPoints
-    ? `${(it.pointsPerPerson * 4 / 1000).toFixed(0)}k pts + $${((it.taxesPerPerson || 0)*4).toLocaleString()} tax`
-    : `$${(it.cashPricePerPerson * 4)?.toLocaleString()} for 4`;
+    ? (it.totalPointsForFamily || it.pointsPerPerson ? `${((it.totalPointsForFamily || it.pointsPerPerson * 4)/1000).toFixed(0)}k pts + $${((it.taxesPerPerson || 0)*4).toLocaleString()} tax` : 'Unknown')
+    : (it.totalCashForFamily || it.cashPricePerPerson ? `$${(it.totalCashForFamily || it.cashPricePerPerson * 4).toLocaleString()} for 4` : 'Unknown');
   const durOut = fmtDur(it.totalDurationMinutesOutbound);
   const durRet = fmtDur(it.totalDurationMinutesReturn);
-  const risks = (it.riskChips||[]).map(r => `<span class="badge badge-watch">${r}</span>`).join(' ');
-  const riskBadge = `<span class="badge badge-${it.riskLevel==='High'?'avoid':it.riskLevel==='Medium'?'watch':'buy'}">${it.riskLevel} Risk</span>`;
-  const ticketBadge = it.sameTicket ? '<span class="badge badge-buy">Same ticket</span>' : '<span class="badge badge-watch">Separate tickets</span>';
-  const cppBadge = it.cpp ? `<span class="badge badge-${it.cpp>=1.5?'buy':'watch'}">${it.cpp.toFixed(1)} cpp</span>` : '';
-  const awardBadge = it.awardSeatsAvailable != null ? `<span class="badge badge-${it.familyBookable?'buy':'avoid'}">${it.awardSeatsAvailable}/4 seats</span>` : '';
-  const payBadge = isPoints ? `<span class="badge badge-points">${it.pointsProgram}</span>` : '<span class="badge badge-cash">Cash</span>';
-
-  const getFlightNumbersSummary = (it) => {
-    const out = (it.outboundSegments || []).map(s => s.flightNumber).filter(Boolean).join('/');
-    const ret = (it.returnSegments || []).map(s => s.flightNumber).filter(Boolean).join('/');
-    if (!out && !ret) return 'Flight numbers TBD';
-    return `${out} | ${ret}`;
-  };
+  const flightNumbers = getFlightNumbersSummary(it);
+  const riskLevel = it.riskLevel || (it.routeFamily?.includes('PVG') || it.routeFamily?.includes('Open-jaw') ? 'Medium' : 'Low');
+  const riskBadge = `<span class="badge badge-${riskLevel==='High'?'avoid':riskLevel==='Medium'?'watch':'buy'}">${riskLevel} Risk</span>`;
+  const payBadge = isPoints ? `<span class="badge badge-points">${it.pointsProgram || it.program || 'Points'}</span>` : '<span class="badge badge-cash">Cash</span>';
+  const verification = typeof getVerificationProgress === 'function' ? getVerificationProgress(it) : { checked: 0, total: 10 };
+  const statusBadges = typeof renderTrustBadges === 'function' ? renderTrustBadges(it) : '<span class="badge badge-watch">Needs verification</span>';
+  const whyGood = it.recommendationReason || it.notes || 'Promising route if the current fare still holds.';
+  const concern = (it.riskChips && it.riskChips.length) ? it.riskChips[0] : (it.sameTicket ? 'Price and seats still need rechecking.' : 'Separate booking risk.');
+  const nextStep = typeof getNextVerificationStep === 'function' ? getNextVerificationStep(it) : 'Recheck price, baggage, seats, and fare rules.';
 
   return `<div class="route-card rec-${recCls}" id="itin-${it.id}">
     <div class="rc-header" style="cursor:pointer" onclick="toggleExpand('${it.id}')">
       <div>
-        <div class="rc-route">${it.title}</div>
-        <div style="font-size:.8rem;color:var(--muted)">${it.airline} (${getFlightNumbersSummary(it)}) · ${it.outboundDate} → ${it.returnDate}</div>
+        <div class="rc-route">${it.title || `${it.origin || 'Unknown'}→${it.destination || 'Unknown'} ${it.airline || ''}`}</div>
+        <div style="font-size:.8rem;color:var(--muted)">${it.airline || 'Unknown airline'} · ${flightNumbers} · ${it.outboundDate || 'Date unknown'} → ${it.returnDate || 'Date unknown'}</div>
       </div>
       <div class="rc-tags">
-        <span class="badge badge-${recCls}">${it.recommendation}</span>
-        ${payBadge} ${awardBadge} ${cppBadge}
-        ${typeof renderTrustBadges === 'function' ? renderTrustBadges(it) : ''}
+        <span class="badge badge-${recCls}">${recLabel}</span>
+        ${payBadge}
+        ${statusBadges}
         <span class="expand-icon" id="expand-${it.id}">▼</span>
       </div>
     </div>
-    
-    <!-- Score Dashboard -->
-    <div class="score-dashboard" style="display:grid;grid-template-columns:repeat(6, 1fr);gap:4px;background:var(--bg);padding:8px;border-radius:var(--r-sm);margin:8px 0;text-align:center;font-size:.78rem">
-      <div style="border-right:1px solid var(--border)">
-        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">OVERALL</div>
-        <div style="font-size:1.1rem;font-weight:800;color:var(--accent)">${it.overallScore}</div>
-      </div>
-      <div>
-        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">PRICE</div>
-        <div style="font-size:.88rem;font-weight:700;color:${getScoreColor(it.priceScore)}">${it.priceScore}</div>
-      </div>
-      <div>
-        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">DURATION</div>
-        <div style="font-size:.88rem;font-weight:700;color:${getScoreColor(it.durationScore)}">${it.durationScore}</div>
-      </div>
-      <div>
-        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">COMFORT</div>
-        <div style="font-size:.88rem;font-weight:700;color:${getScoreColor(it.familyScorePercent)}">${it.familyScorePercent}</div>
-      </div>
-      <div>
-        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">RISK</div>
-        <div style="font-size:.88rem;font-weight:700;color:${getScoreColor(it.riskScore)}">${it.riskScore}</div>
-      </div>
-      <div>
-        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">POINTS</div>
-        <div style="font-size:.88rem;font-weight:700;color:${getScoreColor(it.pointsScore)}">${it.pointsScore}</div>
-      </div>
-    </div>
-
-    <div class="metrics">
-      <div class="metric"><div class="metric-label">Price</div><div class="metric-value">${priceDisplay}</div></div>
+    <div class="metrics compact-metrics">
       <div class="metric"><div class="metric-label">Total for 4</div><div class="metric-value">${totalDisplay}</div></div>
-      <div class="metric"><div class="metric-label">Adjusted Total</div><div class="metric-value">${adjTotal}</div></div>
-      <div class="metric"><div class="metric-label">Outbound</div><div class="metric-value">${durOut} · ${it.stops===0?'Nonstop':it.stops+'-stop'}</div></div>
-      <div class="metric"><div class="metric-label">Return</div><div class="metric-value">${durRet} · ${(it.stopsReturn ?? it.stops)===0?'Nonstop':(it.stopsReturn ?? it.stops)+'-stop'}</div></div>
+      <div class="metric"><div class="metric-label">Price per person</div><div class="metric-value">${priceDisplay}</div></div>
+      <div class="metric"><div class="metric-label">Adjusted total</div><div class="metric-value">${adjTotal}</div></div>
+      <div class="metric"><div class="metric-label">Travel time</div><div class="metric-value">${durOut}</div></div>
+      <div class="metric"><div class="metric-label">Stops</div><div class="metric-value">${(it.stopsOutbound ?? it.stops)===0?'Nonstop':(it.stopsOutbound ?? it.stops) != null ? (it.stopsOutbound ?? it.stops)+'-stop' : 'Unknown'}</div></div>
+      <div class="metric"><div class="metric-label">Arrival airport</div><div class="metric-value">${it.destination || 'Unknown'}</div></div>
+      <div class="metric"><div class="metric-label">Risk</div><div class="metric-value">${riskBadge}</div></div>
+      <div class="metric"><div class="metric-label">Family score</div><div class="metric-value">${it.familyScore || 'Unknown'}/10</div></div>
+      <div class="metric"><div class="metric-label">Verification</div><div class="metric-value">${verification.checked}/${verification.total}</div></div>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0">${riskBadge} ${ticketBadge} ${risks}</div>
-    <div class="rc-actions" style="flex-wrap:wrap;margin:8px 0">${renderItineraryLinks(it)}</div>
+    <div class="flight-bullets">
+      <div><strong>Why it’s good:</strong> ${whyGood}</div>
+      <div><strong>Main concern:</strong> ${concern}</div>
+      <div><strong>Next verification step:</strong> ${nextStep}</div>
+    </div>
     <div class="itin-expanded" id="detail-${it.id}" style="display:none">
       ${renderFlightTimeline(it.outboundSegments, '✈️ Outbound')}
       ${renderFlightTimeline(it.returnSegments, '🔄 Return')}
@@ -174,6 +150,7 @@ function renderItineraryCard(it) {
         <div class="rc-detail"><strong>Source:</strong> ${renderSourceBadge(it)}</div>
         <div class="rc-detail"><strong>Data:</strong> ${renderCompletenessBadge(it)}</div>
       </div>
+      <div class="rc-actions" style="flex-wrap:wrap;margin:8px 0">${renderItineraryLinks(it)}</div>
       ${typeof renderItineraryTrustBlock === 'function' ? renderItineraryTrustBlock(it) : ''}
       <div style="margin-top:10px;padding:10px 14px;background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--border)">
         <div style="font-size:.82rem;font-weight:600;margin-bottom:4px">💬 Verdict</div>
@@ -215,6 +192,13 @@ function renderAllItineraryCards(list) {
   return list.map(renderItineraryCard).join('');
 }
 
+function getFlightNumbersSummary(it) {
+  const out = (it.outboundSegments || []).map(s => s.flightNumber).filter(Boolean).join('/');
+  const ret = (it.returnSegments || []).map(s => s.flightNumber).filter(Boolean).join('/');
+  if (!out && !ret) return 'Flight numbers unknown';
+  return [out, ret].filter(Boolean).join(' | ');
+}
+
 function renderGroupedItineraries(list) {
   const groups = {};
   list.forEach(it => {
@@ -245,12 +229,16 @@ function sortItineraries(list, sortBy) {
 }
 
 function filterItineraries(list) {
+  const includeAlt = document.getElementById('f-alt')?.checked ?? true;
   const includeHKG = document.getElementById('f-hkg')?.checked ?? true;
+  const includeSZX = document.getElementById('f-szx')?.checked ?? true;
   const includePVG = document.getElementById('f-pvg')?.checked ?? true;
   const nonstopOnly = document.getElementById('f-nonstop')?.checked ?? false;
   const oneStopAllowed = document.getElementById('f-1stop')?.checked ?? true;
   const familyOnly = document.getElementById('f-family')?.checked ?? false;
   const bookableOnly = document.getElementById('f-bookable')?.checked ?? false;
+  const pointsOnly = document.getElementById('f-points')?.checked ?? false;
+  const cashOnly = document.getElementById('f-cash')?.checked ?? false;
   const maxPrice = parseInt(document.getElementById('f-max-price')?.value, 10) || null;
   const maxDuration = parseInt(document.getElementById('f-max-dur')?.value, 10) || null;
   return list.filter(it => {
@@ -267,14 +255,30 @@ function filterItineraries(list) {
     if (maxDuration && maxTripHours && maxTripHours > maxDuration) return false;
 
     const dest = it.destination?.split('→')[0]?.trim() || it.destination;
+    if (!includeAlt && dest !== 'CAN') return false;
     if (!includeHKG && (dest === 'HKG' || it.destination === 'HKG')) return false;
+    if (!includeSZX && (dest === 'SZX' || it.destination === 'SZX')) return false;
     if (!includePVG && (dest === 'PVG' || dest === 'SHA' || it.destination === 'PVG' || it.destination === 'SHA')) return false;
     if (nonstopOnly && (it.stops > 0 || it.stopsOutbound > 0)) return false;
     if (!oneStopAllowed && (it.stops > 1 || it.stopsOutbound > 1)) return false;
     if (familyOnly && it.riskLevel === 'High') return false;
     if (bookableOnly && it.paymentType === 'points' && !it.familyBookable) return false;
+    if (pointsOnly && it.paymentType !== 'points') return false;
+    if (cashOnly && it.paymentType !== 'cash') return false;
     return true;
   });
+}
+
+function resetFilters(shouldRender = true) {
+  const ids = ['f-alt', 'f-hkg', 'f-szx', 'f-pvg', 'f-1stop'];
+  ids.forEach(id => { const el = document.getElementById(id); if(el) el.checked = true; });
+  const idsFalse = ['f-nonstop', 'f-family', 'f-bookable', 'f-points', 'f-cash'];
+  idsFalse.forEach(id => { const el = document.getElementById(id); if(el) el.checked = false; });
+  ['f-max-price', 'f-max-dur'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  if (shouldRender) {
+    if (typeof rerenderFilteredViews === 'function') rerenderFilteredViews();
+    else renderItinerariesTab();
+  }
 }
 
 // Render the itineraries tab
@@ -299,7 +303,7 @@ function renderItinerariesTab() {
 
   const filtered = filterItineraries(enriched);
   if (filtered.length === 0) {
-    container.innerHTML = dateAlertHtml + `<div style="text-align:center;padding:20px;color:var(--muted)">No itineraries match the current filters. <button class="btn-sm" onclick="resetFilters()">Reset Filters</button></div>`;
+    container.innerHTML = dateAlertHtml + `<div class="empty-state"><strong>No itineraries match these filters.</strong><span>Try increasing max hours or allowing HKG/SZX.</span><button class="btn-sm" onclick="resetFilters()">Reset filters</button></div>`;
     return;
   }
 
@@ -314,12 +318,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderItinerariesTab();
   document.getElementById('itin-sort')?.addEventListener('change', renderItinerariesTab);
   document.getElementById('itin-group')?.addEventListener('change', renderItinerariesTab);
-<<<<<<< HEAD
-=======
   
-  ['f-max-price', 'f-max-dur', 'f-hkg', 'f-pvg', 'f-nonstop', 'f-1stop', 'f-family', 'f-bookable'].forEach(id => {
+  ['f-max-price', 'f-max-dur', 'f-alt', 'f-hkg', 'f-szx', 'f-pvg', 'f-nonstop', 'f-1stop', 'f-family', 'f-bookable', 'f-points', 'f-cash'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', renderItinerariesTab);
     document.getElementById(id)?.addEventListener('input', renderItinerariesTab);
   });
->>>>>>> origin/main
 });

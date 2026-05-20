@@ -213,7 +213,9 @@ function itineraryComplete(it) {
 function itineraryIsMock(it) {
   const merged = applyTrustOverride(it);
   if (merged.isMock === false || merged.dataStatus === 'Manual' || merged.dataStatus === 'Verified') return false;
-  return merged.isMock === true || !merged.proof;
+  const proof = merged.proof || {};
+  const hasProof = Boolean(proof.screenshotUrl || proof.sourceUrl || proof.observedAt || proof.observedPlatform || proof.observedPrice);
+  return merged.isMock === true || !hasProof;
 }
 
 function itineraryStatusBadges(it) {
@@ -223,9 +225,9 @@ function itineraryStatusBadges(it) {
   const statuses = [];
   if (itineraryIsMock(merged)) statuses.push('Mock');
   if (merged.dataSource || merged.lastCheckedAt || merged.dataStatus === 'Manual') statuses.push('Manual');
-  if (observedAt && trustDaysSince(observedAt) <= 1 && !itineraryNeedsDetails(merged)) statuses.push('Verified');
+  if (merged.verificationStatus === 'Verified' || merged.dataStatus === 'Verified' || (observedAt && trustDaysSince(observedAt) <= 1 && !itineraryNeedsDetails(merged))) statuses.push('Verified');
   if (!observedAt || trustDaysSince(observedAt) > 3) statuses.push('Expired');
-  if (itineraryNeedsDetails(merged)) statuses.push('Needs Details');
+  if (itineraryNeedsDetails(merged)) statuses.push('Needs Verification');
   return [...new Set(statuses)];
 }
 
@@ -397,19 +399,19 @@ function renderDataHealthPanel(enriched) {
     return;
   }
   const lastDates = all.map(it => getProof(it).observedAt || it.lastCheckedAt).filter(Boolean).map(trustParseDate).filter(Boolean).sort((a, b) => b - a);
-  const metrics = [
-    ['Total itineraries loaded', all.length],
-    ['Complete itineraries', all.filter(itineraryComplete).length],
-    ['Incomplete itineraries', all.filter(it => !itineraryComplete(it)).length],
-    ['Visible after filters', visible.length],
-    ['Hidden by filters', all.length - visible.length],
-    ['Needs details count', all.filter(itineraryNeedsDetails).length],
-    ['Mock data count', all.filter(itineraryIsMock).length],
-    ['Last updated', lastDates[0] ? lastDates[0].toLocaleString() : 'No timestamp']
-  ];
-  el.innerHTML = `<div class="data-health-grid">${metrics.map(([k, v]) => `
-    <div class="data-health-card"><span>${k}</span><strong>${v}</strong></div>
-  `).join('')}</div>`;
+  const verified = all.filter(it => itineraryStatusBadges(it).includes('Verified')).length;
+  const needs = all.filter(itineraryNeedsDetails).length;
+  const mockManual = all.filter(it => itineraryIsMock(it) || itineraryStatusBadges(it).includes('Manual')).length;
+  const lastChecked = lastDates[0] ? lastDates[0].toLocaleString() : 'Not checked';
+  const currentWarning = verified ? '' : '<span class="status-warning">Prices are not current until manually verified.</span>';
+  el.innerHTML = `<div class="data-status-row">
+    <span class="trust-badge trust-verified">Verified</span><strong>Verified itineraries: ${verified}</strong>
+    <span class="trust-badge trust-needs-verification">Needs verification</span><strong>Need verification: ${needs}</strong>
+    <span class="trust-badge trust-manual">Manual snapshot</span><strong>Mock/manual data: ${mockManual}</strong>
+    <span><strong>Visible:</strong> ${visible.length}/${all.length}</span>
+    <span><strong>Last checked:</strong> ${lastChecked}</span>
+    ${currentWarning}
+  </div>`;
 }
 
 function missionKey(id) {
