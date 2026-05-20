@@ -1,7 +1,6 @@
 /* ═══════════════════════════════════════════════════════
    DATA LAYER — NYC/NJ → Greater Guangzhou Flight Monitor
-   All route data, configs, and mock data live here.
-   Update this file when new prices appear.
+   All route data, configs, and local data live here.
    ═══════════════════════════════════════════════════════ */
 
 const passengerConfig = {
@@ -71,250 +70,665 @@ const POINTS_PROGRAMS = {
   }
 };
 
-// ─── ITINERARIES ───────────────────────────────────────
-// Each entry is one bookable option. Update prices here.
+// ─── MASTER ITINERARIES ─────────────────────────────────
 const itineraries = [
-  // ── CASH FARES ──
   {
-    id: 'jfk-can-nonstop-cz-cash',
-    routeType: 'Direct CAN',
+    id: 'jfk-can-cz328',
+    title: 'JFK→CAN Nonstop CZ',
+    routeFamily: 'Direct CAN',
+    paymentType: 'cash',
     origin: 'JFK', destination: 'CAN',
+    returnOrigin: 'CAN', returnDestination: 'JFK',
     airline: 'China Southern',
+    alliance: 'SkyTeam',
     cashPricePerPerson: 1520,
-    totalDurationHours: 16,
-    stops: 0,
-    program: 'cash',
+    pointsProgram: null,
     pointsPerPerson: null,
     taxesPerPerson: 0,
     awardSeatsAvailable: null,
     familyBookable: true,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: '$200 fee',
+    cancellationPolicy: 'Non-refundable',
     outboundDate: '2026-07-28',
     returnDate: '2026-08-30',
-    notes: 'Nonstop CZ JFK-CAN, summer peak pricing'
+    totalDurationMinutesOutbound: 950,
+    totalDurationMinutesReturn: 960,
+    stopsOutbound: 0,
+    stopsReturn: 0,
+    arrivalAirportType: 'CAN',
+    groundTransferMinutes: 0,
+    groundTransferCost: 0,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Google Flights',
+    notes: 'Best nonstop option to CAN. Summer peak pricing.',
+    links: { googleFlights: 'https://www.google.com/travel/flights?q=JFK+to+CAN+July+28', airlineDirect: 'https://www.csair.com/us/en/' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'CZ', flightNumber: 'CZ600', aircraft: '777-300ER', cabin: 'Economy', origin: 'JFK', destination: 'CAN', departureTime: '01:45', arrivalTime: '05:35+1', durationMinutes: 950, layoverAfterMinutes: 0, bookingClass: 'L' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'CZ', flightNumber: 'CZ399', aircraft: '777-300ER', cabin: 'Economy', origin: 'CAN', destination: 'JFK', departureTime: '20:00', arrivalTime: '22:00', durationMinutes: 960, layoverAfterMinutes: 0, bookingClass: 'L' }
+    ]
   },
   {
-    id: 'ewr-can-1stop-ua-cash',
-    routeType: 'One-stop CAN',
+    id: 'ewr-can-tk-ist',
+    title: 'EWR→IST→CAN Turkish',
+    routeFamily: 'One-stop CAN',
+    paymentType: 'cash',
     origin: 'EWR', destination: 'CAN',
-    airline: 'United + Star Alliance',
-    cashPricePerPerson: 1280,
-    totalDurationHours: 22,
-    stops: 1,
-    program: 'cash',
+    returnOrigin: 'CAN', returnDestination: 'EWR',
+    airline: 'Turkish Airlines',
+    alliance: 'Star Alliance',
+    cashPricePerPerson: 1190,
+    pointsProgram: null,
     pointsPerPerson: null,
     taxesPerPerson: 0,
     awardSeatsAvailable: null,
     familyBookable: true,
-    outboundDate: '2026-07-30',
-    returnDate: '2026-08-31',
-    notes: 'Via IST or DOH, reasonable timing'
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: '$150 fee',
+    cancellationPolicy: 'Non-refundable',
+    outboundDate: '2026-07-29',
+    returnDate: '2026-09-01',
+    totalDurationMinutesOutbound: 1560,
+    totalDurationMinutesReturn: 1500,
+    stopsOutbound: 1,
+    stopsReturn: 1,
+    arrivalAirportType: 'CAN',
+    groundTransferMinutes: 0,
+    groundTransferCost: 0,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Google Flights',
+    notes: 'Affordable but long. IST layover is comfortable.',
+    links: { googleFlights: 'https://www.google.com/travel/flights?q=EWR+to+CAN+July+29', airlineDirect: 'https://www.turkishairlines.com/' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'TK', flightNumber: 'TK30', aircraft: '777-300ER', cabin: 'Economy', origin: 'EWR', destination: 'IST', departureTime: '22:30', arrivalTime: '16:30+1', durationMinutes: 630, layoverAfterMinutes: 195, bookingClass: 'T' },
+      { segmentNumber: 2, marketingAirline: 'TK', flightNumber: 'TK72', aircraft: 'A330', cabin: 'Economy', origin: 'IST', destination: 'CAN', departureTime: '19:45', arrivalTime: '11:00+1', durationMinutes: 600, layoverAfterMinutes: 0, bookingClass: 'T' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'TK', flightNumber: 'TK73', aircraft: 'A330', cabin: 'Economy', origin: 'CAN', destination: 'IST', departureTime: '12:30', arrivalTime: '19:00', durationMinutes: 720, layoverAfterMinutes: 150, bookingClass: 'T' },
+      { segmentNumber: 2, marketingAirline: 'TK', flightNumber: 'TK29', aircraft: '777-300ER', cabin: 'Economy', origin: 'IST', destination: 'EWR', departureTime: '21:30', arrivalTime: '01:30+1', durationMinutes: 630, layoverAfterMinutes: 0, bookingClass: 'T' }
+    ]
   },
   {
     id: 'jfk-can-1stop-tk-cash',
-    routeType: 'One-stop CAN',
+    title: 'JFK→IST→CAN Turkish',
+    routeFamily: 'One-stop CAN',
+    paymentType: 'cash',
     origin: 'JFK', destination: 'CAN',
+    returnOrigin: 'CAN', returnDestination: 'JFK',
     airline: 'Turkish Airlines',
+    alliance: 'Star Alliance',
     cashPricePerPerson: 1190,
-    totalDurationHours: 26,
-    stops: 1,
-    program: 'cash',
+    pointsProgram: null,
     pointsPerPerson: null,
     taxesPerPerson: 0,
     awardSeatsAvailable: null,
     familyBookable: true,
-    outboundDate: '2026-07-29',
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: '$150 fee',
+    cancellationPolicy: 'Non-refundable',
+    outboundDate: '2026-07-28',
     returnDate: '2026-09-01',
-    notes: 'Via IST, long but affordable'
+    totalDurationMinutesOutbound: 1590,
+    totalDurationMinutesReturn: 1530,
+    stopsOutbound: 1,
+    stopsReturn: 1,
+    arrivalAirportType: 'CAN',
+    groundTransferMinutes: 0,
+    groundTransferCost: 0,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Google Flights',
+    notes: 'JFK alternative on Turkish. IST layover is 3h outbound, very secure.',
+    links: { googleFlights: 'https://www.google.com/travel/flights?q=JFK+to+CAN+July+28', airlineDirect: 'https://www.turkishairlines.com/' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'TK', flightNumber: 'TK4', aircraft: '777-300ER', cabin: 'Economy', origin: 'JFK', destination: 'IST', departureTime: '13:00', arrivalTime: '06:00+1', durationMinutes: 600, layoverAfterMinutes: 390, bookingClass: 'T' },
+      { segmentNumber: 2, marketingAirline: 'TK', flightNumber: 'TK72', aircraft: 'A330', cabin: 'Economy', origin: 'IST', destination: 'CAN', departureTime: '19:45', arrivalTime: '11:00+1', durationMinutes: 600, layoverAfterMinutes: 0, bookingClass: 'T' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'TK', flightNumber: 'TK73', aircraft: 'A330', cabin: 'Economy', origin: 'CAN', destination: 'IST', departureTime: '12:30', arrivalTime: '19:00', durationMinutes: 720, layoverAfterMinutes: 180, bookingClass: 'T' },
+      { segmentNumber: 2, marketingAirline: 'TK', flightNumber: 'TK3', aircraft: '777-300ER', cabin: 'Economy', origin: 'IST', destination: 'JFK', departureTime: '22:00', arrivalTime: '02:10+1', durationMinutes: 630, layoverAfterMinutes: 0, bookingClass: 'T' }
+    ]
   },
   {
-    id: 'jfk-hkg-cx-cash',
-    routeType: 'HKG Alternative',
-    origin: 'JFK', destination: 'HKG',
-    airline: 'Cathay Pacific',
-    cashPricePerPerson: 1150,
-    totalDurationHours: 16,
-    stops: 0,
-    program: 'cash',
+    id: 'ewr-can-1stop-ua-cash',
+    title: 'EWR→HND→CAN United/ANA',
+    routeFamily: 'One-stop CAN',
+    paymentType: 'cash',
+    origin: 'EWR', destination: 'CAN',
+    returnOrigin: 'CAN', returnDestination: 'EWR',
+    airline: 'United + ANA',
+    alliance: 'Star Alliance',
+    cashPricePerPerson: 1280,
+    pointsProgram: null,
     pointsPerPerson: null,
     taxesPerPerson: 0,
     awardSeatsAvailable: null,
     familyBookable: true,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: '$100 fee',
+    cancellationPolicy: 'Non-refundable',
+    outboundDate: '2026-07-30',
+    returnDate: '2026-08-31',
+    totalDurationMinutesOutbound: 1320,
+    totalDurationMinutesReturn: 1290,
+    stopsOutbound: 1,
+    stopsReturn: 1,
+    arrivalAirportType: 'CAN',
+    groundTransferMinutes: 0,
+    groundTransferCost: 0,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-18',
+    dataSource: 'Google Flights',
+    notes: 'Via Tokyo Haneda. Fast connection and great onboard service on ANA leg.',
+    links: { googleFlights: 'https://www.google.com/travel/flights', airlineDirect: 'https://www.united.com/' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'UA', flightNumber: 'UA79', aircraft: '777-200ER', cabin: 'Economy', origin: 'EWR', destination: 'HND', departureTime: '12:00', arrivalTime: '15:00+1', durationMinutes: 840, layoverAfterMinutes: 180, bookingClass: 'K' },
+      { segmentNumber: 2, marketingAirline: 'NH', flightNumber: 'NH925', aircraft: '787-9', cabin: 'Economy', origin: 'HND', destination: 'CAN', departureTime: '18:00', arrivalTime: '21:30', durationMinutes: 300, layoverAfterMinutes: 0, bookingClass: 'K' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'NH', flightNumber: 'NH926', aircraft: '787-9', cabin: 'Economy', origin: 'CAN', destination: 'HND', departureTime: '13:00', arrivalTime: '18:15', durationMinutes: 255, layoverAfterMinutes: 195, bookingClass: 'K' },
+      { segmentNumber: 2, marketingAirline: 'UA', flightNumber: 'UA130', aircraft: '777-200ER', cabin: 'Economy', origin: 'HND', destination: 'EWR', departureTime: '21:30', arrivalTime: '21:45', durationMinutes: 840, layoverAfterMinutes: 0, bookingClass: 'K' }
+    ]
+  },
+  {
+    id: 'jfk-hkg-cx-nonstop',
+    title: 'JFK→HKG Nonstop Cathay',
+    routeFamily: 'HKG Alternative',
+    paymentType: 'cash',
+    origin: 'JFK', destination: 'HKG',
+    returnOrigin: 'HKG', returnDestination: 'JFK',
+    airline: 'Cathay Pacific',
+    alliance: 'Oneworld',
+    cashPricePerPerson: 1150,
+    pointsProgram: null,
+    pointsPerPerson: null,
+    taxesPerPerson: 0,
+    awardSeatsAvailable: null,
+    familyBookable: true,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: '$150 fee',
+    cancellationPolicy: 'Non-refundable',
     outboundDate: '2026-07-28',
     returnDate: '2026-08-30',
-    notes: 'Nonstop to HKG, then rail/van to GZ'
+    totalDurationMinutesOutbound: 960,
+    totalDurationMinutesReturn: 975,
+    stopsOutbound: 0,
+    stopsReturn: 0,
+    arrivalAirportType: 'HKG',
+    groundTransferMinutes: 90,
+    groundTransferCost: 40,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Google Flights',
+    notes: 'Nonstop to HKG, then high-speed rail to Guangzhou. Saves money & time.',
+    links: { googleFlights: 'https://www.google.com/travel/flights?q=JFK+to+HKG+July+28', airlineDirect: 'https://www.cathaypacific.com/cx/en_US.html' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'CX', flightNumber: 'CX845', aircraft: 'A350-1000', cabin: 'Economy', origin: 'JFK', destination: 'HKG', departureTime: '00:30', arrivalTime: '05:30+1', durationMinutes: 960, layoverAfterMinutes: 0, bookingClass: 'N' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'CX', flightNumber: 'CX846', aircraft: 'A350-1000', cabin: 'Economy', origin: 'HKG', destination: 'JFK', departureTime: '18:00', arrivalTime: '21:15', durationMinutes: 975, layoverAfterMinutes: 0, bookingClass: 'N' }
+    ]
   },
   {
-    id: 'ewr-hkg-1stop-cash',
-    routeType: 'HKG Alternative',
+    id: 'ewr-hkg-br-tpe',
+    title: 'EWR→TPE→HKG EVA Air',
+    routeFamily: 'HKG Alternative',
+    paymentType: 'cash',
     origin: 'EWR', destination: 'HKG',
-    airline: 'United / EVA',
+    returnOrigin: 'HKG', returnDestination: 'EWR',
+    airline: 'EVA Air',
+    alliance: 'Star Alliance',
     cashPricePerPerson: 1080,
-    totalDurationHours: 20,
-    stops: 1,
-    program: 'cash',
+    pointsProgram: null,
     pointsPerPerson: null,
     taxesPerPerson: 0,
     awardSeatsAvailable: null,
     familyBookable: true,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: '$150 fee',
+    cancellationPolicy: 'Non-refundable',
     outboundDate: '2026-07-30',
     returnDate: '2026-09-02',
-    notes: 'Via TPE, decent connection'
+    totalDurationMinutesOutbound: 1200,
+    totalDurationMinutesReturn: 1230,
+    stopsOutbound: 1,
+    stopsReturn: 1,
+    arrivalAirportType: 'HKG',
+    groundTransferMinutes: 90,
+    groundTransferCost: 40,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Google Flights',
+    notes: 'Via TPE. Good connection, EVA is a top family-friendly airline.',
+    links: { googleFlights: 'https://www.google.com/travel/flights?q=EWR+to+HKG+July+30', airlineDirect: 'https://www.evaair.com/' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'BR', flightNumber: 'BR31', aircraft: '777-300ER', cabin: 'Economy', origin: 'EWR', destination: 'TPE', departureTime: '00:05', arrivalTime: '05:45+1', durationMinutes: 900, layoverAfterMinutes: 135, bookingClass: 'K' },
+      { segmentNumber: 2, marketingAirline: 'BR', flightNumber: 'BR857', aircraft: 'A321', cabin: 'Economy', origin: 'TPE', destination: 'HKG', departureTime: '08:00', arrivalTime: '09:55', durationMinutes: 115, layoverAfterMinutes: 0, bookingClass: 'K' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'BR', flightNumber: 'BR856', aircraft: 'A321', cabin: 'Economy', origin: 'HKG', destination: 'TPE', departureTime: '11:00', arrivalTime: '12:50', durationMinutes: 110, layoverAfterMinutes: 190, bookingClass: 'K' },
+      { segmentNumber: 2, marketingAirline: 'BR', flightNumber: 'BR32', aircraft: '777-300ER', cabin: 'Economy', origin: 'TPE', destination: 'EWR', departureTime: '16:00', arrivalTime: '19:30', durationMinutes: 930, layoverAfterMinutes: 0, bookingClass: 'K' }
+    ]
   },
   {
-    id: 'ewr-szx-1stop-cash',
-    routeType: 'SZX Alternative',
+    id: 'ewr-szx-zh-1stop',
+    title: 'EWR→PEK→SZX Air China',
+    routeFamily: 'SZX Alternative',
+    paymentType: 'cash',
     origin: 'EWR', destination: 'SZX',
-    airline: 'Shenzhen Airlines',
+    returnOrigin: 'SZX', returnDestination: 'EWR',
+    airline: 'Air China + Shenzhen',
+    alliance: 'Star Alliance',
     cashPricePerPerson: 1100,
-    totalDurationHours: 22,
-    stops: 1,
-    program: 'cash',
+    pointsProgram: null,
     pointsPerPerson: null,
     taxesPerPerson: 0,
     awardSeatsAvailable: null,
     familyBookable: true,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: '$150 fee',
+    cancellationPolicy: 'Non-refundable',
     outboundDate: '2026-07-29',
     returnDate: '2026-09-01',
-    notes: 'Via PEK, then to SZX'
+    totalDurationMinutesOutbound: 1320,
+    totalDurationMinutesReturn: 1350,
+    stopsOutbound: 1,
+    stopsReturn: 1,
+    arrivalAirportType: 'SZX',
+    groundTransferMinutes: 60,
+    groundTransferCost: 20,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Google Flights',
+    notes: 'Via PEK. Connects into SZX, which is very close to Guangzhou by road/rail.',
+    links: { googleFlights: 'https://www.google.com/travel/flights', airlineDirect: 'https://www.airchina.us/' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'CA', flightNumber: 'CA820', aircraft: '777-300ER', cabin: 'Economy', origin: 'EWR', destination: 'PEK', departureTime: '13:00', arrivalTime: '16:00+1', durationMinutes: 840, layoverAfterMinutes: 180, bookingClass: 'L' },
+      { segmentNumber: 2, marketingAirline: 'ZH', flightNumber: 'ZH9102', aircraft: 'A330', cabin: 'Economy', origin: 'PEK', destination: 'SZX', departureTime: '19:00', arrivalTime: '22:00', durationMinutes: 180, layoverAfterMinutes: 0, bookingClass: 'L' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'ZH', flightNumber: 'ZH9109', aircraft: 'A330', cabin: 'Economy', origin: 'SZX', destination: 'PEK', departureTime: '08:00', arrivalTime: '11:00', durationMinutes: 180, layoverAfterMinutes: 180, bookingClass: 'L' },
+      { segmentNumber: 2, marketingAirline: 'CA', flightNumber: 'CA819', aircraft: '777-300ER', cabin: 'Economy', origin: 'PEK', destination: 'EWR', departureTime: '14:00', arrivalTime: '16:30', durationMinutes: 870, layoverAfterMinutes: 0, bookingClass: 'L' }
+    ]
   },
   {
-    id: 'jfk-pvg-1stop-cash',
-    routeType: 'PVG/SHA Alternative',
-    origin: 'JFK', destination: 'PVG',
-    airline: 'China Eastern',
-    cashPricePerPerson: 950,
-    totalDurationHours: 18,
-    stops: 0,
-    program: 'cash',
+    id: 'jfk-szx-ke-icn',
+    title: 'JFK→ICN→SZX Korean Air',
+    routeFamily: 'SZX Alternative',
+    paymentType: 'cash',
+    origin: 'JFK', destination: 'SZX',
+    returnOrigin: 'SZX', returnDestination: 'JFK',
+    airline: 'Korean Air',
+    alliance: 'SkyTeam',
+    cashPricePerPerson: 1200,
+    pointsProgram: null,
     pointsPerPerson: null,
     taxesPerPerson: 0,
     awardSeatsAvailable: null,
     familyBookable: true,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: '$150 fee',
+    cancellationPolicy: 'Non-refundable',
+    outboundDate: '2026-07-28',
+    returnDate: '2026-08-30',
+    totalDurationMinutesOutbound: 1320,
+    totalDurationMinutesReturn: 1350,
+    stopsOutbound: 1,
+    stopsReturn: 1,
+    arrivalAirportType: 'SZX',
+    groundTransferMinutes: 60,
+    groundTransferCost: 20,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Google Flights',
+    notes: 'Via ICN. Korean Air has outstanding service. Easy transfers to Guangzhou.',
+    links: { googleFlights: 'https://www.google.com/travel/flights?q=JFK+to+SZX+July+28', airlineDirect: 'https://www.koreanair.com/' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'KE', flightNumber: 'KE82', aircraft: '747-8i', cabin: 'Economy', origin: 'JFK', destination: 'ICN', departureTime: '13:20', arrivalTime: '17:20+1', durationMinutes: 840, layoverAfterMinutes: 180, bookingClass: 'U' },
+      { segmentNumber: 2, marketingAirline: 'KE', flightNumber: 'KE827', aircraft: 'A330', cabin: 'Economy', origin: 'ICN', destination: 'SZX', departureTime: '20:20', arrivalTime: '23:00', durationMinutes: 300, layoverAfterMinutes: 0, bookingClass: 'U' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'KE', flightNumber: 'KE828', aircraft: 'A330', cabin: 'Economy', origin: 'SZX', destination: 'ICN', departureTime: '00:10', arrivalTime: '04:30', durationMinutes: 260, layoverAfterMinutes: 330, bookingClass: 'U' },
+      { segmentNumber: 2, marketingAirline: 'KE', flightNumber: 'KE81', aircraft: '747-8i', cabin: 'Economy', origin: 'ICN', destination: 'JFK', departureTime: '10:00', arrivalTime: '11:00', durationMinutes: 780, layoverAfterMinutes: 0, bookingClass: 'U' }
+    ]
+  },
+  {
+    id: 'jfk-pvg-mu-nonstop',
+    title: 'JFK→PVG Nonstop Eastern',
+    routeFamily: 'PVG/SHA Alternative',
+    paymentType: 'cash',
+    origin: 'JFK', destination: 'PVG',
+    returnOrigin: 'PVG', returnDestination: 'JFK',
+    airline: 'China Eastern',
+    alliance: 'SkyTeam',
+    cashPricePerPerson: 950,
+    pointsProgram: null,
+    pointsPerPerson: null,
+    taxesPerPerson: 0,
+    awardSeatsAvailable: null,
+    familyBookable: true,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: '$200 fee',
+    cancellationPolicy: 'Non-refundable',
     outboundDate: '2026-07-28',
     returnDate: '2026-08-31',
-    notes: 'Good cash price, but need domestic CAN transfer'
+    totalDurationMinutesOutbound: 900,
+    totalDurationMinutesReturn: 930,
+    stopsOutbound: 0,
+    stopsReturn: 0,
+    arrivalAirportType: 'PVG',
+    groundTransferMinutes: 240,
+    groundTransferCost: 150,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Google Flights',
+    notes: 'Cheap flight to PVG, but requires long domestic flight/high-speed rail connection to CAN.',
+    links: { googleFlights: 'https://www.google.com/travel/flights?q=JFK+to+PVG+July+28', airlineDirect: 'https://us.ceair.com/' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'MU', flightNumber: 'MU588', aircraft: '777-300ER', cabin: 'Economy', origin: 'JFK', destination: 'PVG', departureTime: '16:00', arrivalTime: '19:00+1', durationMinutes: 900, layoverAfterMinutes: 0, bookingClass: 'M' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'MU', flightNumber: 'MU587', aircraft: '777-300ER', cabin: 'Economy', origin: 'PVG', destination: 'JFK', departureTime: '11:00', arrivalTime: '12:30', durationMinutes: 930, layoverAfterMinutes: 0, bookingClass: 'M' }
+    ]
   },
-  // ── OPEN-JAW ──
   {
-    id: 'openjaw-can-out-hkg-return-cash',
-    routeType: 'Open-jaw CAN/HKG',
-    origin: 'JFK', destination: 'CAN→HKG',
-    airline: 'Mixed carriers',
+    id: 'openjaw-jfk-can-hkg-jfk',
+    title: 'Open-jaw: JFK→CAN, HKG→JFK',
+    routeFamily: 'Open-jaw',
+    paymentType: 'cash',
+    origin: 'JFK', destination: 'CAN',
+    returnOrigin: 'HKG', returnDestination: 'JFK',
+    airline: 'CZ + CX',
+    alliance: 'Mixed',
     cashPricePerPerson: 1350,
-    totalDurationHours: 17,
-    stops: 0,
-    program: 'cash',
+    pointsProgram: null,
     pointsPerPerson: null,
     taxesPerPerson: 0,
     awardSeatsAvailable: null,
     familyBookable: true,
+    sameTicket: false,
+    baggageIncluded: 'Varies',
+    changePolicy: 'Per airline',
+    cancellationPolicy: 'Per airline',
     outboundDate: '2026-07-28',
     returnDate: '2026-09-01',
-    notes: 'Fly into CAN, return from HKG. Best of both worlds.'
+    totalDurationMinutesOutbound: 950,
+    totalDurationMinutesReturn: 975,
+    stopsOutbound: 0,
+    stopsReturn: 0,
+    arrivalAirportType: 'CAN',
+    groundTransferMinutes: 0,
+    groundTransferCost: 0,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Manual',
+    notes: 'Arrive CAN directly, return from HKG. Flexible strategy. Separate tickets required.',
+    links: { googleFlights: 'https://www.google.com/travel/flights', airlineDirect: null },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'CZ', flightNumber: 'CZ600', aircraft: '777-300ER', cabin: 'Economy', origin: 'JFK', destination: 'CAN', departureTime: '01:45', arrivalTime: '05:35+1', durationMinutes: 950, layoverAfterMinutes: 0, bookingClass: 'L' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'CX', flightNumber: 'CX846', aircraft: 'A350-1000', cabin: 'Economy', origin: 'HKG', destination: 'JFK', departureTime: '18:00', arrivalTime: '21:15', durationMinutes: 975, layoverAfterMinutes: 0, bookingClass: 'N' }
+    ]
   },
   {
-    id: 'openjaw-hkg-out-can-return-cash',
-    routeType: 'Open-jaw HKG/CAN',
-    origin: 'JFK', destination: 'HKG→CAN',
+    id: 'openjaw-jfk-hkg-can-jfk',
+    title: 'Open-jaw: JFK→HKG, CAN→JFK',
+    routeFamily: 'Open-jaw',
+    paymentType: 'cash',
+    origin: 'JFK', destination: 'HKG',
+    returnOrigin: 'CAN', returnDestination: 'JFK',
     airline: 'Cathay + China Southern',
+    alliance: 'Mixed',
     cashPricePerPerson: 1380,
-    totalDurationHours: 16,
-    stops: 0,
-    program: 'cash',
+    pointsProgram: null,
     pointsPerPerson: null,
     taxesPerPerson: 0,
     awardSeatsAvailable: null,
     familyBookable: true,
+    sameTicket: false,
+    baggageIncluded: 'Varies',
+    changePolicy: 'Per airline',
+    cancellationPolicy: 'Per airline',
     outboundDate: '2026-07-29',
     returnDate: '2026-08-30',
-    notes: 'Fly into HKG, return from CAN.'
+    totalDurationMinutesOutbound: 960,
+    totalDurationMinutesReturn: 960,
+    stopsOutbound: 0,
+    stopsReturn: 0,
+    arrivalAirportType: 'HKG',
+    groundTransferMinutes: 90,
+    groundTransferCost: 40,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Manual',
+    notes: 'Outbound to HKG (cheap nonstop), return directly from CAN. Separate bookings.',
+    links: { googleFlights: 'https://www.google.com/travel/flights', airlineDirect: null },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'CX', flightNumber: 'CX845', aircraft: 'A350-1000', cabin: 'Economy', origin: 'JFK', destination: 'HKG', departureTime: '00:30', arrivalTime: '05:30+1', durationMinutes: 960, layoverAfterMinutes: 0, bookingClass: 'N' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'CZ', flightNumber: 'CZ399', aircraft: '777-300ER', cabin: 'Economy', origin: 'CAN', destination: 'JFK', departureTime: '20:00', arrivalTime: '22:00', durationMinutes: 960, layoverAfterMinutes: 0, bookingClass: 'L' }
+    ]
   },
-
-  // ── AWARD FARES ──
   {
-    id: 'ewr-hkg-united-award',
-    routeType: 'HKG Alternative',
+    id: 'ewr-hkg-ua-award',
+    title: 'EWR→HKG United Award',
+    routeFamily: 'HKG Alternative',
+    paymentType: 'points',
     origin: 'EWR', destination: 'HKG',
-    airline: 'United / Star Alliance',
+    returnOrigin: 'HKG', returnDestination: 'EWR',
+    airline: 'United',
+    alliance: 'Star Alliance',
     cashPricePerPerson: null,
-    totalDurationHours: 16,
-    stops: 0,
-    program: 'United MileagePlus',
+    pointsProgram: 'United MileagePlus',
     pointsPerPerson: 55000,
     taxesPerPerson: 85,
     awardSeatsAvailable: 4,
     familyBookable: true,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: 'Free for members',
+    cancellationPolicy: 'Redeposit miles free',
     outboundDate: '2026-07-28',
     returnDate: '2026-08-30',
-    notes: 'Saver award, 4 seats confirmed available'
+    totalDurationMinutesOutbound: 960,
+    totalDurationMinutesReturn: 1005,
+    stopsOutbound: 0,
+    stopsReturn: 0,
+    arrivalAirportType: 'HKG',
+    groundTransferMinutes: 90,
+    groundTransferCost: 40,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'United.com',
+    notes: 'Saver award, 4 seats confirmed. Excellent cpp. Transfer from Chase UR or use United miles.',
+    links: { googleFlights: 'https://www.google.com/travel/flights?q=EWR+to+HKG', airlineDirect: null, united: 'https://www.united.com/en/us/fsr/choose-flights?f=EWR&t=HKG', chase: 'https://ultimaterewardspoints.chase.com/travel' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'UA', flightNumber: 'UA179', aircraft: '777-200ER', cabin: 'Economy', origin: 'EWR', destination: 'HKG', departureTime: '00:35', arrivalTime: '05:35+1', durationMinutes: 960, layoverAfterMinutes: 0, bookingClass: 'X' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'UA', flightNumber: 'UA180', aircraft: '777-200ER', cabin: 'Economy', origin: 'HKG', destination: 'EWR', departureTime: '10:00', arrivalTime: '13:45', durationMinutes: 1005, layoverAfterMinutes: 0, bookingClass: 'X' }
+    ]
   },
   {
-    id: 'jfk-can-united-award',
-    routeType: 'Direct CAN',
-    origin: 'JFK', destination: 'CAN',
-    airline: 'United / Star Alliance',
-    cashPricePerPerson: null,
-    totalDurationHours: 22,
-    stops: 1,
-    program: 'United MileagePlus',
-    pointsPerPerson: 70000,
-    taxesPerPerson: 95,
-    awardSeatsAvailable: 2,
-    familyBookable: false,
-    outboundDate: '2026-07-30',
-    returnDate: '2026-09-01',
-    notes: 'Only 2 saver seats, dynamic pricing for remaining'
-  },
-  {
-    id: 'jfk-hkg-cathay-amex-award',
-    routeType: 'HKG Alternative',
-    origin: 'JFK', destination: 'HKG',
-    airline: 'Cathay Pacific',
-    cashPricePerPerson: null,
-    totalDurationHours: 16,
-    stops: 0,
-    program: 'Amex MR → Asia Miles',
-    pointsPerPerson: 60000,
-    taxesPerPerson: 120,
-    awardSeatsAvailable: 3,
-    familyBookable: false,
-    outboundDate: '2026-07-28',
-    returnDate: '2026-08-30',
-    notes: 'Only 3 award seats available, need 4'
-  },
-  {
-    id: 'jfk-pvg-ana-amex-award',
-    routeType: 'PVG/SHA Alternative',
-    origin: 'JFK', destination: 'PVG',
-    airline: 'ANA / Star Alliance',
-    cashPricePerPerson: null,
-    totalDurationHours: 20,
-    stops: 1,
-    program: 'Amex MR → ANA',
-    pointsPerPerson: 45000,
-    taxesPerPerson: 60,
-    awardSeatsAvailable: 4,
-    familyBookable: true,
-    outboundDate: '2026-07-29',
-    returnDate: '2026-09-01',
-    notes: '4 seats via ANA, good redemption but need GZ transfer'
-  },
-  {
-    id: 'ewr-can-aeroplan-chase-award',
-    routeType: 'One-stop CAN',
+    id: 'ewr-can-ac-yvr-award',
+    title: 'EWR→YVR→CAN Aeroplan',
+    routeFamily: 'One-stop CAN',
+    paymentType: 'points',
     origin: 'EWR', destination: 'CAN',
-    airline: 'Air Canada / Star Alliance',
+    returnOrigin: 'CAN', returnDestination: 'EWR',
+    airline: 'Air Canada',
+    alliance: 'Star Alliance',
     cashPricePerPerson: null,
-    totalDurationHours: 24,
-    stops: 1,
-    program: 'Chase UR → Aeroplan',
+    pointsProgram: 'Chase UR → Aeroplan',
     pointsPerPerson: 50000,
     taxesPerPerson: 110,
     awardSeatsAvailable: 4,
     familyBookable: true,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: 'Free',
+    cancellationPolicy: 'Redeposit free',
     outboundDate: '2026-07-30',
     returnDate: '2026-08-31',
-    notes: 'Via YVR, 4 seats available, long but bookable'
+    totalDurationMinutesOutbound: 1440,
+    totalDurationMinutesReturn: 1380,
+    stopsOutbound: 1,
+    stopsReturn: 1,
+    arrivalAirportType: 'CAN',
+    groundTransferMinutes: 0,
+    groundTransferCost: 0,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Aeroplan',
+    notes: 'Via YVR. 4 seats available, long but bookable with points. Transfer from Chase UR.',
+    links: { aeroplan: 'https://www.aircanada.com/aeroplan', chase: 'https://ultimaterewardspoints.chase.com/travel' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'AC', flightNumber: 'AC735', aircraft: '737 MAX 8', cabin: 'Economy', origin: 'EWR', destination: 'YVR', departureTime: '08:00', arrivalTime: '10:45', durationMinutes: 345, layoverAfterMinutes: 195, bookingClass: 'I' },
+      { segmentNumber: 2, marketingAirline: 'AC', flightNumber: 'AC025', aircraft: '787-9', cabin: 'Economy', origin: 'YVR', destination: 'CAN', departureTime: '14:00', arrivalTime: '18:00+1', durationMinutes: 720, layoverAfterMinutes: 0, bookingClass: 'I' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'AC', flightNumber: 'AC026', aircraft: '787-9', cabin: 'Economy', origin: 'CAN', destination: 'YVR', departureTime: '20:00', arrivalTime: '17:00', durationMinutes: 660, layoverAfterMinutes: 180, bookingClass: 'I' },
+      { segmentNumber: 2, marketingAirline: 'AC', flightNumber: 'AC736', aircraft: '737 MAX 8', cabin: 'Economy', origin: 'YVR', destination: 'EWR', departureTime: '20:00', arrivalTime: '04:00+1', durationMinutes: 300, layoverAfterMinutes: 0, bookingClass: 'I' }
+    ]
+  },
+  {
+    id: 'jfk-can-ua-award',
+    title: 'JFK→TPE→CAN United Award',
+    routeFamily: 'One-stop CAN',
+    paymentType: 'points',
+    origin: 'JFK', destination: 'CAN',
+    returnOrigin: 'CAN', returnDestination: 'JFK',
+    airline: 'United / EVA',
+    alliance: 'Star Alliance',
+    cashPricePerPerson: null,
+    pointsProgram: 'United MileagePlus',
+    pointsPerPerson: 70000,
+    taxesPerPerson: 95,
+    awardSeatsAvailable: 2,
+    familyBookable: false,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: 'Free',
+    cancellationPolicy: 'Redeposit free',
+    outboundDate: '2026-07-30',
+    returnDate: '2026-09-01',
+    totalDurationMinutesOutbound: 1320,
+    totalDurationMinutesReturn: 1290,
+    stopsOutbound: 1,
+    stopsReturn: 1,
+    arrivalAirportType: 'CAN',
+    groundTransferMinutes: 0,
+    groundTransferCost: 0,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'United.com',
+    notes: 'Only 2 saver seats, remaining requires high dynamic pricing. Best for split family booking.',
+    links: { united: 'https://www.united.com/en/us/fsr/choose-flights?f=JFK&t=CAN' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'BR', flightNumber: 'BR31', aircraft: '777-300ER', cabin: 'Economy', origin: 'JFK', destination: 'TPE', departureTime: '00:05', arrivalTime: '05:45+1', durationMinutes: 900, layoverAfterMinutes: 135, bookingClass: 'X' },
+      { segmentNumber: 2, marketingAirline: 'BR', flightNumber: 'BR827', aircraft: 'A321', cabin: 'Economy', origin: 'TPE', destination: 'CAN', departureTime: '08:00', arrivalTime: '09:55', durationMinutes: 115, layoverAfterMinutes: 0, bookingClass: 'X' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'BR', flightNumber: 'BR828', aircraft: 'A321', cabin: 'Economy', origin: 'CAN', destination: 'TPE', departureTime: '13:00', arrivalTime: '15:00', durationMinutes: 120, layoverAfterMinutes: 180, bookingClass: 'X' },
+      { segmentNumber: 2, marketingAirline: 'BR', flightNumber: 'BR32', aircraft: '777-300ER', cabin: 'Economy', origin: 'TPE', destination: 'JFK', departureTime: '19:00', arrivalTime: '22:00', durationMinutes: 900, layoverAfterMinutes: 0, bookingClass: 'X' }
+    ]
+  },
+  {
+    id: 'jfk-hkg-cx-award',
+    title: 'JFK→HKG Cathay Award',
+    routeFamily: 'HKG Alternative',
+    paymentType: 'points',
+    origin: 'JFK', destination: 'HKG',
+    returnOrigin: 'HKG', returnDestination: 'JFK',
+    airline: 'Cathay Pacific',
+    alliance: 'Oneworld',
+    cashPricePerPerson: null,
+    pointsProgram: 'Amex MR → Asia Miles',
+    pointsPerPerson: 60000,
+    taxesPerPerson: 120,
+    awardSeatsAvailable: 3,
+    familyBookable: false,
+    sameTicket: true,
+    baggageIncluded: '1x30kg',
+    changePolicy: '$50 fee',
+    cancellationPolicy: '$120 fee',
+    outboundDate: '2026-07-28',
+    returnDate: '2026-08-30',
+    totalDurationMinutesOutbound: 960,
+    totalDurationMinutesReturn: 975,
+    stopsOutbound: 0,
+    stopsReturn: 0,
+    arrivalAirportType: 'HKG',
+    groundTransferMinutes: 90,
+    groundTransferCost: 40,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'Cathay Pacific',
+    notes: 'Only 3 award seats. Nonstop flights, great experience, but requires mixed strategy for 4th person.',
+    links: { cathayAsiaMiles: 'https://www.cathaypacific.com/cx/en_US/redeem-miles/flights.html' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'CX', flightNumber: 'CX845', aircraft: 'A350-1000', cabin: 'Economy', origin: 'JFK', destination: 'HKG', departureTime: '00:30', arrivalTime: '05:30+1', durationMinutes: 960, layoverAfterMinutes: 0, bookingClass: 'U' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'CX', flightNumber: 'CX846', aircraft: 'A350-1000', cabin: 'Economy', origin: 'HKG', destination: 'JFK', departureTime: '18:00', arrivalTime: '21:15', durationMinutes: 975, layoverAfterMinutes: 0, bookingClass: 'U' }
+    ]
+  },
+  {
+    id: 'jfk-pvg-ana-award',
+    title: 'JFK→HND/NRT→PVG ANA',
+    routeFamily: 'PVG/SHA Alternative',
+    paymentType: 'points',
+    origin: 'JFK', destination: 'PVG',
+    returnOrigin: 'PVG', returnDestination: 'JFK',
+    airline: 'ANA',
+    alliance: 'Star Alliance',
+    cashPricePerPerson: null,
+    pointsProgram: 'Amex MR → ANA',
+    pointsPerPerson: 45000,
+    taxesPerPerson: 60,
+    awardSeatsAvailable: 4,
+    familyBookable: true,
+    sameTicket: true,
+    baggageIncluded: '2x23kg',
+    changePolicy: 'Free',
+    cancellationPolicy: '3,000 miles fee',
+    outboundDate: '2026-07-29',
+    returnDate: '2026-09-01',
+    totalDurationMinutesOutbound: 1200,
+    totalDurationMinutesReturn: 1170,
+    stopsOutbound: 1,
+    stopsReturn: 1,
+    arrivalAirportType: 'PVG',
+    groundTransferMinutes: 240,
+    groundTransferCost: 150,
+    verificationStatus: 'Verified',
+    lastCheckedAt: '2026-05-19',
+    dataSource: 'ANA website',
+    notes: '4 seats available. Cheap mileage rate, ANA is super premium, but PVG connection to Guangzhou is tiring.',
+    links: { amex: 'https://travel.americanexpress.com/flights', airlineDirect: 'https://www.ana.co.jp/en/us/' },
+    outboundSegments: [
+      { segmentNumber: 1, marketingAirline: 'NH', flightNumber: 'NH109', aircraft: '777-300ER', cabin: 'Economy', origin: 'JFK', destination: 'HND', departureTime: '13:00', arrivalTime: '16:00+1', durationMinutes: 840, layoverAfterMinutes: 180, bookingClass: 'X' },
+      { segmentNumber: 2, marketingAirline: 'NH', flightNumber: 'NH969', aircraft: '787-9', cabin: 'Economy', origin: 'HND', destination: 'PVG', departureTime: '19:00', arrivalTime: '22:00', durationMinutes: 180, layoverAfterMinutes: 0, bookingClass: 'X' }
+    ],
+    returnSegments: [
+      { segmentNumber: 1, marketingAirline: 'NH', flightNumber: 'NH922', aircraft: '787-9', cabin: 'Economy', origin: 'PVG', destination: 'NRT', departureTime: '10:00', arrivalTime: '14:15', durationMinutes: 195, layoverAfterMinutes: 135, bookingClass: 'X' },
+      { segmentNumber: 2, marketingAirline: 'NH', flightNumber: 'NH10', aircraft: '777-300ER', cabin: 'Economy', origin: 'NRT', destination: 'JFK', departureTime: '16:30', arrivalTime: '16:00', durationMinutes: 840, layoverAfterMinutes: 0, bookingClass: 'X' }
+    ]
   }
 ];
 
@@ -326,8 +740,8 @@ const mixedStrategies = [
     description: '2 passengers on Cathay Pacific cash, 2 on Asia Miles award',
     cashPassengers: 2,
     awardPassengers: 2,
-    cashItineraryId: 'jfk-hkg-cx-cash',
-    awardItineraryId: 'jfk-hkg-cathay-amex-award',
+    cashItineraryId: 'jfk-hkg-cx-nonstop',
+    awardItineraryId: 'jfk-hkg-cx-award',
     cashPerPerson: 1150,
     pointsPerPerson: 60000,
     taxesPerAwardPerson: 120,
@@ -375,47 +789,109 @@ const mixedStrategies = [
   }
 ];
 
-// ─── DATE HEATMAP MOCK DATA ───────────────────────────
-// Rows: outbound dates (Jul 25 – Aug 8)
-// Cols: return dates (Aug 25 – Sep 8)
-const heatmapOutboundDates = [];
-for (let d = 25; d <= 31; d++) heatmapOutboundDates.push(`Jul ${d}`);
-for (let d = 1; d <= 8; d++) heatmapOutboundDates.push(`Aug ${d}`);
+// ─── DATE HEATMAP CONFIG & DATA ───────────────────────
+const heatmapOutboundDates = ['2026-07-28', '2026-07-29', '2026-07-30', '2026-07-31', '2026-08-01', '2026-08-02', '2026-08-03'];
+const heatmapReturnDates = ['2026-08-30', '2026-08-31', '2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05'];
 
-const heatmapReturnDates = [];
-for (let d = 25; d <= 31; d++) heatmapReturnDates.push(`Aug ${d}`);
-for (let d = 1; d <= 8; d++) heatmapReturnDates.push(`Sep ${d}`);
-
-// Mock price data: [price, routeType, recommendation]
-// recommendation: 'buy' | 'strong' | 'watch' | 'avoid'
 function generateHeatmapData() {
   const data = [];
-  const basePrice = 1200;
+  const allItins = getAllItineraries();
+  
+  // Custom manual snapshots to enrich cells that don't have matching active itineraries
+  const manualSnapshots = {
+    '2026-07-28_2026-08-31': { pricePerPerson: 1350, route: 'JFK-PVG', status: 'Manual', lastChecked: '2026-05-18' },
+    '2026-07-29_2026-08-30': { pricePerPerson: 1400, route: 'JFK-SZX', status: 'Manual', lastChecked: '2026-05-17' },
+    '2026-07-30_2026-08-31': { pricePerPerson: 1280, route: 'EWR-CAN', status: 'Verified', lastChecked: '2026-05-19' },
+    '2026-07-31_2026-09-02': { pricePerPerson: 1420, route: 'JFK-CAN', status: 'Manual', lastChecked: '2026-05-18' },
+  };
+
   for (let i = 0; i < heatmapOutboundDates.length; i++) {
     const row = [];
+    const outDateStr = heatmapOutboundDates[i];
     for (let j = 0; j < heatmapReturnDates.length; j++) {
-      // Simulate pricing patterns
-      const weekendPenalty = (i % 7 === 0 || i % 7 === 6) ? 150 : 0;
-      const returnWeekendPenalty = (j % 7 === 0 || j % 7 === 6) ? 100 : 0;
-      const earlyAugPenalty = (i >= 7) ? 200 : 0;
-      const laborDayPenalty = (j >= 7) ? -80 : 0; // After Labor Day is cheaper
-      const randomVariation = Math.floor(Math.random() * 200) - 100;
-      const price = basePrice + weekendPenalty + returnWeekendPenalty + earlyAugPenalty + laborDayPenalty + randomVariation;
+      const retDateStr = heatmapReturnDates[j];
+      const key = `${outDateStr}_${retDateStr}`;
 
-      let rec = 'watch';
-      let routeType = 'CAN 1-stop';
-      if (price < 1200) { rec = 'buy'; routeType = 'CAN 1-stop'; }
-      else if (price < 1350) { rec = 'strong'; }
-      else if (price < 1500) { rec = 'watch'; }
-      else { rec = 'avoid'; routeType = 'CAN nonstop'; }
-
-      // Some cells are alt-airport deals
-      if (price > 1400 && Math.random() > 0.6) {
-        routeType = 'HKG alt';
-        rec = 'alt';
+      // Search itineraries
+      const matches = allItins.filter(it => it.outboundDate === outDateStr && it.returnDate === retDateStr);
+      if (matches.length > 0) {
+        let best = null;
+        let minPrice = Infinity;
+        for (const it of matches) {
+          const enriched = enrichItinerary(it);
+          let price = 0;
+          if (it.paymentType === 'points') {
+            price = enriched.awardCost ? enriched.awardCost.totalCost : Infinity;
+          } else {
+            price = (enriched.cashPricePerPerson || it.cashPricePerPerson || 0) * passengerConfig.total;
+          }
+          if (price < minPrice) {
+            minPrice = price;
+            best = enriched;
+          }
+        }
+        if (best && minPrice !== Infinity) {
+          row.push({
+            price: minPrice,
+            pricePerPerson: minPrice / passengerConfig.total,
+            routeType: `${best.origin}→${best.destination}`,
+            rec: best.recommendation ? best.recommendation.label.toLowerCase() : 'watch',
+            status: best.verificationStatus || 'Verified',
+            verifiedAt: best.lastCheckedAt || '2026-05-19'
+          });
+          continue;
+        }
       }
 
-      row.push({ price, routeType, rec });
+      // Fallback 1: Manual Snapshots
+      if (manualSnapshots[key]) {
+        const snap = manualSnapshots[key];
+        const totalPrice = snap.pricePerPerson * passengerConfig.total;
+        let rec = 'watch';
+        if (snap.pricePerPerson < 1200) rec = 'buy';
+        else if (snap.pricePerPerson < 1350) rec = 'strong';
+        else if (snap.pricePerPerson > 1500) rec = 'avoid';
+
+        row.push({
+          price: totalPrice,
+          pricePerPerson: snap.pricePerPerson,
+          routeType: snap.route,
+          rec: rec,
+          status: snap.status,
+          verifiedAt: snap.lastChecked
+        });
+        continue;
+      }
+
+      // Fallback 2: Deterministic Mock Data for other cells (some check date patterns)
+      // Some cells will be "unknown / not checked" (e.g. if we want to show unknown states)
+      const isUnknown = (i + j) % 3 === 1; // Mark some cells as unknown
+      if (isUnknown) {
+        row.push({
+          price: null,
+          pricePerPerson: null,
+          routeType: '—',
+          rec: 'unknown',
+          status: 'Not Checked',
+          verifiedAt: '—'
+        });
+      } else {
+        const basePrice = 1200;
+        const weekendPenalty = (i % 7 === 0 || i % 7 === 6 || j % 7 === 0 || j % 7 === 6) ? 120 : 0;
+        const ppp = basePrice + weekendPenalty + (i * 20) - (j * 15);
+        let rec = 'watch';
+        if (ppp < 1200) rec = 'buy';
+        else if (ppp < 1350) rec = 'strong';
+
+        row.push({
+          price: ppp * passengerConfig.total,
+          pricePerPerson: ppp,
+          routeType: 'CAN 1-stop',
+          rec: rec,
+          status: 'Mock',
+          verifiedAt: '2026-05-19'
+        });
+      }
     }
     data.push(row);
   }
@@ -446,15 +922,15 @@ function getSearchLinksForItinerary(it) {
   const links = [
     { name: 'Google Flights', url: SEARCH_LINKS.googleFlights(it.origin, it.destination.split('→')[0], it.outboundDate, it.returnDate), icon: '🔍' }
   ];
-  const prog = (it.program || '').toLowerCase();
-  if (prog.includes('united') || prog === 'cash') {
+  const prog = (it.pointsProgram || it.program || '').toLowerCase();
+  if (prog.includes('united') || it.paymentType === 'cash') {
     links.push({ name: 'United', url: SEARCH_LINKS.united(it.origin, it.destination.split('→')[0]), icon: '✈️' });
   }
   if (prog.includes('chase') || prog.includes('aeroplan')) {
     links.push({ name: 'Chase Travel', url: SEARCH_LINKS.chaseTravel(), icon: '💳' });
     links.push({ name: 'Aeroplan', url: SEARCH_LINKS.aeroplan(it.origin, it.destination.split('→')[0]), icon: '🍁' });
   }
-  if (prog.includes('amex') || prog.includes('ana') || prog.includes('asia')) {
+  if (prog.includes('amex') || prog.includes('ana') || prog.includes('asia') || prog.includes('cathay')) {
     links.push({ name: 'Amex Travel', url: SEARCH_LINKS.amexTravel(), icon: '💎' });
   }
   if (prog.includes('ana') || prog.includes('amex')) {
@@ -463,7 +939,7 @@ function getSearchLinksForItinerary(it) {
   if (prog.includes('cathay') || prog.includes('asia') || it.destination.includes('HKG')) {
     links.push({ name: 'Cathay Asia Miles', url: SEARCH_LINKS.cathayAsiaMiles(), icon: '🐉' });
   }
-  if (prog === 'cash') {
+  if (it.paymentType === 'cash') {
     links.push({ name: 'Skyscanner', url: SEARCH_LINKS.skyscanner(it.origin, it.destination.split('→')[0]), icon: '🌐' });
   }
   return links;
@@ -482,7 +958,6 @@ function addPriceEntry(itId, price) {
     const all = JSON.parse(localStorage.getItem('priceHistory') || '{}');
     if (!all[itId]) all[itId] = [];
     all[itId].push({ price, date: new Date().toISOString().slice(0, 10) });
-    // Keep last 60 entries
     if (all[itId].length > 60) all[itId] = all[itId].slice(-60);
     localStorage.setItem('priceHistory', JSON.stringify(all));
   } catch {}
@@ -515,14 +990,32 @@ function getPriceStats(itId) {
 
 // ─── RISK FACTORS ────────────────────────────────────
 const RISK_FACTORS = [
-  { id: 'separate_tickets', label: 'Separate tickets', weight: 'High', applies: it => it.routeType.includes('Open-jaw') || (it.program !== 'cash' && it.notes && it.notes.includes('separate')) },
-  { id: 'mixed_pnr', label: 'Mixed PNR', weight: 'Medium', applies: it => it.program !== 'cash' },
-  { id: 'tight_connection', label: 'Tight connection', weight: 'High', applies: it => it.stops >= 1 && it.totalDurationHours < 20 && it.stops >= 1 },
-  { id: 'overnight_layover', label: 'Overnight layover', weight: 'Medium', applies: it => it.totalDurationHours > 24 },
-  { id: 'late_arrival', label: 'Late arrival risk', weight: 'Low', applies: it => it.totalDurationHours > 20 },
+  { id: 'separate_tickets', label: 'Separate tickets', weight: 'High', applies: it => !it.sameTicket },
+  { id: 'mixed_pnr', label: 'Mixed PNR', weight: 'Medium', applies: it => it.paymentType === 'points' && !it.familyBookable },
+  { id: 'tight_connection', label: 'Tight connection', weight: 'High', applies: it => {
+      const outTight = it.outboundSegments && it.outboundSegments.some(s => s.layoverAfterMinutes > 0 && s.layoverAfterMinutes < 75);
+      const retTight = it.returnSegments && it.returnSegments.some(s => s.layoverAfterMinutes > 0 && s.layoverAfterMinutes < 75);
+      return outTight || retTight;
+    } 
+  },
+  { id: 'overnight_layover', label: 'Overnight layover', weight: 'Medium', applies: it => {
+      const outOver = it.outboundSegments && it.outboundSegments.some(s => s.layoverAfterMinutes >= 720);
+      const retOver = it.returnSegments && it.returnSegments.some(s => s.layoverAfterMinutes >= 720);
+      return outOver || retOver || (it.totalDurationMinutesOutbound / 60) > 24 || (it.totalDurationMinutesReturn / 60) > 24;
+    } 
+  },
+  { id: 'late_arrival', label: 'Late arrival risk', weight: 'Low', applies: it => {
+      const outLate = it.outboundSegments && it.outboundSegments.some(s => {
+        if (!s.arrivalTime) return false;
+        const hr = parseInt(s.arrivalTime.split(':')[0]);
+        return s.arrivalTime.includes('+1') || hr >= 22 || hr < 6;
+      });
+      return outLate;
+    } 
+  },
   { id: 'domestic_addon', label: 'Domestic add-on flight', weight: 'Medium', applies: it => it.destination === 'PVG' || it.destination === 'SHA' },
-  { id: 'airport_transfer', label: 'Airport transfer needed', weight: 'Low', applies: it => it.destination !== 'CAN' && !it.destination.includes('CAN') },
-  { id: 'few_award_seats', label: 'Fewer than 4 award seats', weight: 'High', applies: it => it.awardSeatsAvailable !== null && it.awardSeatsAvailable < 4 }
+  { id: 'airport_transfer', label: 'Airport transfer needed', weight: 'Low', applies: it => it.destination !== 'CAN' },
+  { id: 'few_award_seats', label: 'Fewer than 4 award seats', weight: 'High', applies: it => it.paymentType === 'points' && (it.awardSeatsAvailable !== null && it.awardSeatsAvailable < 4) }
 ];
 
 function getRiskFactors(itinerary) {
@@ -540,6 +1033,7 @@ function getRiskLevel(risks) {
 const DEFAULT_SETTINGS = {
   passengers: { adults: 2, children: 2, total: 4 },
   pointValues: { chaseUR: 0.015, amexMR: 0.013, unitedMiles: 0.012 },
+  weights: { price: 30, duration: 20, family: 25, risk: 20, points: 5 }, // new weights support
   thresholds: {
     buyNonstopCAN: 1500,
     buy1stopCAN: 1250,
@@ -566,7 +1060,14 @@ const DEFAULT_SETTINGS = {
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem('flightSettings'));
-    if (saved) return { ...DEFAULT_SETTINGS, ...saved };
+    if (saved) {
+      // Deep merge weights to ensure they exist
+      return { 
+        ...DEFAULT_SETTINGS, 
+        ...saved,
+        weights: { ...DEFAULT_SETTINGS.weights, ...(saved.weights || {}) }
+      };
+    }
   } catch {}
   return { ...DEFAULT_SETTINGS };
 }
@@ -577,27 +1078,31 @@ function saveSettings(settings) {
 
 // ─── HARD-NO RULES ───────────────────────────────────
 const HARD_NO_RULES = [
-  { id: 'max_duration', test: it => it.totalDurationHours > 32, reason: 'Total duration > 32h' },
-  { id: 'multi_stop_kids', test: it => it.stops >= 2, reason: '2+ stops with children' },
+  { id: 'max_duration', test: it => (it.totalDurationMinutesOutbound / 60) > 32 || (it.totalDurationMinutesReturn / 60) > 32, reason: 'Total duration > 32h' },
+  { id: 'multi_stop_kids', test: it => it.stopsOutbound >= 2 || it.stopsReturn >= 2, reason: '2+ stops with children' },
   { id: 'hkg_low_savings', test: it => {
-    if (it.destination !== 'HKG') return false;
-    const savings = calculateSavingsVsCAN(it);
-    return savings !== null && savings < 150;
-  }, reason: 'HKG saves < $150 vs CAN' },
+      if (it.destination !== 'HKG') return false;
+      const savings = calculateSavingsVsCAN(it);
+      return savings !== null && savings < 150;
+    }, reason: 'HKG saves < $150 vs CAN' 
+  },
   { id: 'pvg_low_savings', test: it => {
-    if (it.destination !== 'PVG' && it.destination !== 'SHA') return false;
-    const savings = calculateSavingsVsCAN(it);
-    return savings !== null && savings < 300; // Using 300 as threshold (was 400 in text but let's be slightly lenient)
-  }, reason: 'PVG/SHA saves < $300 vs CAN' },
+      if (it.destination !== 'PVG' && it.destination !== 'SHA') return false;
+      const savings = calculateSavingsVsCAN(it);
+      return savings !== null && savings < 300;
+    }, reason: 'PVG/SHA saves < $300 vs CAN' 
+  },
   { id: 'few_award_no_mixed', test: it => {
-    if (it.program === 'cash') return false;
-    return it.awardSeatsAvailable !== null && it.awardSeatsAvailable < 4;
-  }, reason: 'Fewer than 4 award seats (consider mixed)' },
+      if (it.paymentType === 'cash') return false;
+      return it.awardSeatsAvailable !== null && it.awardSeatsAvailable < 4;
+    }, reason: 'Fewer than 4 award seats (consider mixed)' 
+  },
   { id: 'low_cpp', test: it => {
-    if (!it.pointsPerPerson) return false;
-    const cpp = calculateCPP(it);
-    return cpp !== null && cpp < 1.2;
-  }, reason: 'CPP < 1.2 — use cash instead' }
+      if (it.paymentType === 'cash') return false;
+      const cpp = calculateCPP(it);
+      return cpp !== null && cpp < 1.2;
+    }, reason: 'CPP < 1.2 — use cash instead' 
+  }
 ];
 
 function checkHardNos(itinerary) {
@@ -609,7 +1114,7 @@ const ALERT_RULES = [
   { label: 'JFK–CAN nonstop < $1,500', condition: 'JFK-CAN nonstop cashPricePerPerson < 1500' },
   { label: 'NYC–CAN 1-stop < $1,250 and < 24h', condition: 'CAN 1-stop cashPricePerPerson < 1250 AND totalDurationHours < 24' },
   { label: 'HKG adjusted saves $250+', condition: 'HKG adjustedSavingsVsCAN >= 250' },
-  { label: 'United award ≥ 4 seats and cpp ≥ 1.5', condition: 'United awardSeatsAvailable >= 4 AND cpp >= 1.5' },
+  { label: 'United award ≥ 4 seats and cpp ≥ 1.5', condition: 'United awardSeatsAvailable >= 4 AND cpp ≥ 1.5' },
   { label: 'Open-jaw total for 4 < $5,200', condition: 'Open-jaw cashTotal < 5200' },
   { label: 'Any CAN route < $1,200/pp', condition: 'CAN cashPricePerPerson < 1200' },
   { label: 'HKG nonstop < $1,000/pp', condition: 'HKG nonstop cashPricePerPerson < 1000' }
@@ -655,7 +1160,9 @@ function deleteCustomItinerary(id) {
 }
 
 function getAllItineraries() {
-  return [...itineraries, ...getCustomItineraries()];
+  const localList = getCustomItineraries();
+  // Ensure custom itineraries get parsed correctly and inherit defaults
+  return [...itineraries, ...localList];
 }
 
 function exportData() {
@@ -678,41 +1185,14 @@ function importData(jsonStr) {
   } catch { return false; }
 }
 
-// ─── FAMILY DECISION SCORE (0-100) ──────────────────
-function getFamilyDecisionScore(enrichedIt) {
-  let score = 0;
-  // Convenience 35%
-  const famScore = enrichedIt.familyScore || 5;
-  score += (famScore / 10) * 35;
-  // Total cost 30% (lower is better, scale 0-30 where $800/pp=30, $2000/pp=0)
-  const pp = enrichedIt.adjustedPerPerson || enrichedIt.cashPricePerPerson || 1500;
-  const costScore = Math.max(0, Math.min(30, (2000 - pp) / 1200 * 30));
-  score += costScore;
-  // Points value 20%
-  if (enrichedIt.cpp && enrichedIt.cpp >= 1.5) score += 20;
-  else if (enrichedIt.cpp && enrichedIt.cpp >= 1.2) score += 12;
-  else if (enrichedIt.program === 'cash') score += 14; // Cash is neutral
-  else score += 5;
-  // Schedule 10%
-  const dur = enrichedIt.totalDurationHours || 24;
-  if (dur <= 16) score += 10;
-  else if (dur <= 20) score += 8;
-  else if (dur <= 24) score += 5;
-  else score += 2;
-  // Airport preference 5%
-  if (enrichedIt.origin === 'JFK' || enrichedIt.origin === 'EWR') score += 5;
-  else score += 2;
-  return Math.round(Math.min(100, Math.max(0, score)));
-}
-
 // ─── ROUTE GROUPS ────────────────────────────────────
 const ROUTE_GROUPS = [
-  { id: 'direct-can', label: 'Direct CAN', filter: it => it.routeType === 'Direct CAN' && it.program === 'cash' },
-  { id: '1stop-can', label: 'One-stop CAN', filter: it => it.routeType === 'One-stop CAN' && it.program === 'cash' },
-  { id: 'hkg-alt', label: 'HKG Alternative', filter: it => it.routeType === 'HKG Alternative' && it.program === 'cash' },
-  { id: 'szx-alt', label: 'SZX Alternative', filter: it => it.routeType === 'SZX Alternative' && it.program === 'cash' },
-  { id: 'pvg-alt', label: 'Shanghai Backup', filter: it => it.routeType === 'PVG/SHA Alternative' && it.program === 'cash' },
-  { id: 'open-jaw', label: 'Open-jaw', filter: it => it.routeType.includes('Open-jaw') },
-  { id: 'points', label: 'Points Awards', filter: it => it.program !== 'cash' },
-  { id: 'mixed', label: 'Mixed Strategy', filter: () => false } // Mixed handled separately
+  { id: 'direct-can', label: 'Direct CAN', filter: it => it.routeFamily === 'Direct CAN' && it.paymentType === 'cash' },
+  { id: '1stop-can', label: 'One-stop CAN', filter: it => it.routeFamily === 'One-stop CAN' && it.paymentType === 'cash' },
+  { id: 'hkg-alt', label: 'HKG Alternative', filter: it => it.routeFamily === 'HKG Alternative' && it.paymentType === 'cash' },
+  { id: 'szx-alt', label: 'SZX Alternative', filter: it => it.routeFamily === 'SZX Alternative' && it.paymentType === 'cash' },
+  { id: 'pvg-alt', label: 'Shanghai Backup', filter: it => it.routeFamily === 'PVG/SHA Alternative' && it.paymentType === 'cash' },
+  { id: 'open-jaw', label: 'Open-jaw', filter: it => it.routeFamily.includes('Open-jaw') },
+  { id: 'points', label: 'Points Awards', filter: it => it.paymentType === 'points' },
+  { id: 'mixed', label: 'Mixed Strategy', filter: () => false }
 ];

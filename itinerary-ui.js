@@ -78,16 +78,23 @@ function renderSurfaceBlock(it) {
   </div>`;
 }
 
+function getScoreColor(score) {
+  if (score >= 80) return '#16a34a';
+  if (score >= 60) return '#2563eb';
+  if (score >= 40) return '#d97706';
+  return '#dc2626';
+}
+
 function renderItineraryCard(it) {
   const recCls = {Strong:'strong',Watch:'watch',Avoid:'avoid','Buy Now':'buy'}[it.recommendation] || 'watch';
   const isPoints = it.paymentType === 'points';
   const priceDisplay = isPoints
     ? `${(it.pointsPerPerson/1000).toFixed(0)}k pts/pp`
     : `$${it.cashPricePerPerson?.toLocaleString()}/pp`;
-  const adjTotal = it.adjustedTotalForFamily ? `$${it.adjustedTotalForFamily.toLocaleString()}` : '—';
+  const adjTotal = it.adjustedTotal ? `$${it.adjustedTotal.toLocaleString()}` : '—';
   const totalDisplay = isPoints
-    ? `${(it.totalPointsForFamily/1000).toFixed(0)}k pts + $${(it.taxesPerPerson*4).toLocaleString()} tax`
-    : `$${it.totalCashForFamily?.toLocaleString()} for 4`;
+    ? `${(it.pointsPerPerson * 4 / 1000).toFixed(0)}k pts + $${((it.taxesPerPerson || 0)*4).toLocaleString()} tax`
+    : `$${(it.cashPricePerPerson * 4)?.toLocaleString()} for 4`;
   const durOut = fmtDur(it.totalDurationMinutesOutbound);
   const durRet = fmtDur(it.totalDurationMinutesReturn);
   const risks = (it.riskChips||[]).map(r => `<span class="badge badge-watch">${r}</span>`).join(' ');
@@ -116,12 +123,41 @@ function renderItineraryCard(it) {
         <span class="expand-icon" id="expand-${it.id}">▼</span>
       </div>
     </div>
+    
+    <!-- Score Dashboard -->
+    <div class="score-dashboard" style="display:grid;grid-template-columns:repeat(6, 1fr);gap:4px;background:var(--bg);padding:8px;border-radius:var(--r-sm);margin:8px 0;text-align:center;font-size:.78rem">
+      <div style="border-right:1px solid var(--border)">
+        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">OVERALL</div>
+        <div style="font-size:1.1rem;font-weight:800;color:var(--accent)">${it.overallScore}</div>
+      </div>
+      <div>
+        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">PRICE</div>
+        <div style="font-size:.88rem;font-weight:700;color:${getScoreColor(it.priceScore)}">${it.priceScore}</div>
+      </div>
+      <div>
+        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">DURATION</div>
+        <div style="font-size:.88rem;font-weight:700;color:${getScoreColor(it.durationScore)}">${it.durationScore}</div>
+      </div>
+      <div>
+        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">COMFORT</div>
+        <div style="font-size:.88rem;font-weight:700;color:${getScoreColor(it.familyScorePercent)}">${it.familyScorePercent}</div>
+      </div>
+      <div>
+        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">RISK</div>
+        <div style="font-size:.88rem;font-weight:700;color:${getScoreColor(it.riskScore)}">${it.riskScore}</div>
+      </div>
+      <div>
+        <div style="font-size:.62rem;font-weight:600;color:var(--muted)">POINTS</div>
+        <div style="font-size:.88rem;font-weight:700;color:${getScoreColor(it.pointsScore)}">${it.pointsScore}</div>
+      </div>
+    </div>
+
     <div class="metrics">
       <div class="metric"><div class="metric-label">Price</div><div class="metric-value">${priceDisplay}</div></div>
       <div class="metric"><div class="metric-label">Total for 4</div><div class="metric-value">${totalDisplay}</div></div>
       <div class="metric"><div class="metric-label">Adjusted Total</div><div class="metric-value">${adjTotal}</div></div>
-      <div class="metric"><div class="metric-label">Outbound</div><div class="metric-value">${durOut} · ${it.stopsOutbound===0?'Nonstop':it.stopsOutbound+'-stop'}</div></div>
-      <div class="metric"><div class="metric-label">Return</div><div class="metric-value">${durRet} · ${it.stopsReturn===0?'Nonstop':it.stopsReturn+'-stop'}</div></div>
+      <div class="metric"><div class="metric-label">Outbound</div><div class="metric-value">${durOut} · ${it.stops===0?'Nonstop':it.stops+'-stop'}</div></div>
+      <div class="metric"><div class="metric-label">Return</div><div class="metric-value">${durRet} · ${(it.stopsReturn ?? it.stops)===0?'Nonstop':(it.stopsReturn ?? it.stops)+'-stop'}</div></div>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0">${riskBadge} ${ticketBadge} ${risks}</div>
     <div class="rc-actions" style="flex-wrap:wrap;margin:8px 0">${renderItineraryLinks(it)}</div>
@@ -198,14 +234,11 @@ function renderGroupedItineraries(list) {
 function sortItineraries(list, sortBy) {
   const copy = [...list];
   switch(sortBy) {
-    case 'price': return copy.sort((a,b) => (a.totalCashForFamily||99999) - (b.totalCashForFamily||99999));
-    case 'duration': return copy.sort((a,b) => a.totalDurationMinutesOutbound - b.totalDurationMinutesOutbound);
-    case 'cpp': return copy.sort((a,b) => (b.cpp||0) - (a.cpp||0));
-    case 'risk': return copy.sort((a,b) => {const w={Low:0,Medium:1,High:2}; return (w[a.riskLevel]||1)-(w[b.riskLevel]||1);});
-    default: {
-      const order = {'Buy Now':0,'Strong':1,'Watch':2,'Avoid':3};
-      return copy.sort((a,b) => (order[a.recommendation]||2) - (order[b.recommendation]||2));
-    }
+    case 'price': return copy.sort((a,b) => (a.totalCostCalculated || 999999) - (b.totalCostCalculated || 999999));
+    case 'duration': return copy.sort((a,b) => (a.totalHours || 999) - (b.totalHours || 999));
+    case 'cpp': return copy.sort((a,b) => (b.cpp || 0) - (a.cpp || 0));
+    case 'risk': return copy.sort((a,b) => (b.riskScore || 0) - (a.riskScore || 0));
+    default: return copy.sort((a,b) => (b.overallScore || 0) - (a.overallScore || 0));
   }
 }
 
@@ -218,22 +251,17 @@ function filterItineraries(list) {
   const bookableOnly = document.getElementById('f-bookable')?.checked ?? false;
 
   return list.filter(it => {
-    if (!includeHKG && it.destination === 'HKG') return false;
-    if (!includePVG && (it.destination === 'PVG' || it.destination === 'SHA')) return false;
-    if (nonstopOnly && it.stopsOutbound > 0) return false;
-    if (!oneStopAllowed && it.stopsOutbound > 1) return false;
+    if (window.filterOutboundDate && it.outboundDate !== window.filterOutboundDate) return false;
+    if (window.filterReturnDate && it.returnDate !== window.filterReturnDate) return false;
+    const dest = it.destination?.split('→')[0]?.trim();
+    if (!includeHKG && dest === 'HKG') return false;
+    if (!includePVG && (dest === 'PVG' || dest === 'SHA')) return false;
+    if (nonstopOnly && it.stops > 0) return false;
+    if (!oneStopAllowed && it.stops > 1) return false;
     if (familyOnly && it.riskLevel === 'High') return false;
     if (bookableOnly && it.paymentType === 'points' && !it.familyBookable) return false;
     return true;
   });
-}
-
-function resetFilters() {
-  const ids = ['f-hkg', 'f-pvg', 'f-1stop'];
-  ids.forEach(id => { const el = document.getElementById(id); if(el) el.checked = true; });
-  const idsFalse = ['f-nonstop', 'f-family', 'f-bookable'];
-  idsFalse.forEach(id => { const el = document.getElementById(id); if(el) el.checked = false; });
-  renderItinerariesTab();
 }
 
 // Render the itineraries tab
@@ -242,21 +270,30 @@ function renderItinerariesTab() {
   const container = document.getElementById('itineraries-list');
   if (!container) return;
 
-  if (typeof ITINERARIES === 'undefined' || ITINERARIES.length === 0) {
+  const enriched = getEnrichedItineraries();
+  if (enriched.length === 0) {
     container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted)">No itinerary data loaded. Add sample data or import JSON.</div>`;
     return;
   }
 
-  const filtered = filterItineraries(ITINERARIES);
+  let dateAlertHtml = '';
+  if (window.filterOutboundDate && window.filterReturnDate) {
+    dateAlertHtml = `<div class="date-alert-banner" style="display:flex;align-items:center;justify-content:space-between;background:#e0f2fe;border:1px solid #0284c7;color:#0369a1;padding:8px 12px;border-radius:var(--r-sm);margin-bottom:12px;font-size:.82rem">
+      <span>📅 Showing flights for dates: <strong>${window.filterOutboundDate}</strong> to <strong>${window.filterReturnDate}</strong></span>
+      <button class="btn-sm" onclick="clearDateFilter()" style="border-color:#0284c7;color:#0369a1">Clear Date Filter</button>
+    </div>`;
+  }
+
+  const filtered = filterItineraries(enriched);
   if (filtered.length === 0) {
-    container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted)">No itineraries match the current filters. <button class="btn-sm" onclick="resetFilters()">Reset Filters</button></div>`;
+    container.innerHTML = dateAlertHtml + `<div style="text-align:center;padding:20px;color:var(--muted)">No itineraries match the current filters. <button class="btn-sm" onclick="resetFilters()">Reset Filters</button></div>`;
     return;
   }
 
   const sorted = sortItineraries(filtered, sort);
   const grouped = document.getElementById('itin-group')?.checked;
   
-  container.innerHTML = grouped ? renderGroupedItineraries(sorted) : `<div class="route-cards">${renderAllItineraryCards(sorted)}</div>`;
+  container.innerHTML = dateAlertHtml + (grouped ? renderGroupedItineraries(sorted) : `<div class="route-cards">${renderAllItineraryCards(sorted)}</div>`);
 }
 
 // Init
@@ -264,8 +301,4 @@ document.addEventListener('DOMContentLoaded', () => {
   renderItinerariesTab();
   document.getElementById('itin-sort')?.addEventListener('change', renderItinerariesTab);
   document.getElementById('itin-group')?.addEventListener('change', renderItinerariesTab);
-  
-  ['f-hkg', 'f-pvg', 'f-nonstop', 'f-1stop', 'f-family', 'f-bookable'].forEach(id => {
-    document.getElementById(id)?.addEventListener('change', renderItinerariesTab);
-  });
 });

@@ -36,18 +36,60 @@
       <div class="summary-grid" id="summary-cards"></div>
     </section>
 
+    <!-- FILTER BAR HEADER -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button id="toggle-filters-btn" class="btn-sm" onclick="toggleFilters()" style="display:inline-flex;align-items:center;gap:6px">
+          🔍 <span id="toggle-filters-text">Hide Filters</span>
+        </button>
+        <span style="font-size:.78rem;font-weight:600;color:var(--muted)">Presets:</span>
+        <div style="display:inline-flex;gap:4px;flex-wrap:wrap">
+          <button class="btn-sm" onclick="applyPreset('cheapest')" title="Cheap options, up to 48h travel time">💰 Cheapest</button>
+          <button class="btn-sm" onclick="applyPreset('kids')" title="Highest child convenience scores">👨‍👩‍👧‍👦 Kids-Friendly</button>
+          <button class="btn-sm" onclick="applyPreset('points')" title="Award flights with 4 seats available">💎 Points Bookable</button>
+          <button class="btn-sm" onclick="applyPreset('lowrisk')">🛡️ Low Risk</button>
+          <button class="btn-sm" onclick="applyPreset('openjaw')">🔀 Open-Jaw</button>
+          <button class="btn-sm" onclick="resetFilters()" style="background:var(--border)">🔄 Clear</button>
+        </div>
+      </div>
+    </div>
+
     <!-- FILTERS -->
-    <div class="filters-bar">
-      <div class="fg"><label for="f-max-price">Max $/pp</label><input type="number" id="f-max-price" placeholder="Any"></div>
-      <div class="fg"><label for="f-max-dur">Max hours</label><input type="number" id="f-max-dur" placeholder="Any"></div>
+    <div class="filters-bar" id="filters-panel">
+      <div class="fg" title="Filter by maximum price per person (cash or points cash-equivalent)">
+        <label for="f-max-price">Max $/pp ⓘ</label>
+        <input type="number" id="f-max-price" placeholder="Any">
+      </div>
+      <div class="fg" title="Filter by maximum roundtrip total travel hours">
+        <label for="f-max-dur">Max hours ⓘ</label>
+        <input type="number" id="f-max-dur" placeholder="Any">
+      </div>
       <div class="f-div"></div>
-      <div class="fg"><input type="checkbox" id="f-hkg" checked><label for="f-hkg">Include HKG</label></div>
-      <div class="fg"><input type="checkbox" id="f-pvg" checked><label for="f-pvg">Include PVG/SHA</label></div>
+      <div class="fg" title="Include Hong Kong Airport alternative routes">
+        <input type="checkbox" id="f-hkg" checked>
+        <label for="f-hkg">HKG ⓘ</label>
+      </div>
+      <div class="fg" title="Include Shanghai (Pudong/Hongqiao) alternative routes">
+        <input type="checkbox" id="f-pvg" checked>
+        <label for="f-pvg">PVG/SHA ⓘ</label>
+      </div>
       <div class="f-div"></div>
-      <div class="fg"><input type="checkbox" id="f-nonstop"><label for="f-nonstop">Nonstop only</label></div>
-      <div class="fg"><input type="checkbox" id="f-1stop" checked><label for="f-1stop">Allow 1-stop</label></div>
-      <div class="fg"><input type="checkbox" id="f-family"><label for="f-family">Family-friendly only</label></div>
-      <div class="fg"><input type="checkbox" id="f-bookable"><label for="f-bookable">4-seat bookable only</label></div>
+      <div class="fg" title="Show nonstop flights only">
+        <input type="checkbox" id="f-nonstop">
+        <label for="f-nonstop">Nonstop only ⓘ</label>
+      </div>
+      <div class="fg" title="Allow up to 1 stop (outbound & return)">
+        <input type="checkbox" id="f-1stop" checked>
+        <label for="f-1stop">Allow 1-stop ⓘ</label>
+      </div>
+      <div class="fg" title="Only show options with Family Comfort Score >= 7.0 (70%)">
+        <input type="checkbox" id="f-family">
+        <label for="f-family">Kids fit ⓘ</label>
+      </div>
+      <div class="fg" title="Only show points flights with at least 4 award seats available">
+        <input type="checkbox" id="f-bookable">
+        <label for="f-bookable">4 seats ⓘ</label>
+      </div>
     </div>
 
     <!-- TABS -->

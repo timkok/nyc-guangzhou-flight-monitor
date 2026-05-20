@@ -6,13 +6,15 @@
 (function applyPriceOverrides() {
   const baselines = {};
   for (const it of itineraries) {
-    if (it.program === 'cash') baselines[it.id] = it.cashPricePerPerson;
+    if (it.paymentType === 'cash') baselines[it.id] = it.cashPricePerPerson;
   }
   window._baselineCashPrice = baselines;
   const ov = (typeof window !== 'undefined' && window.priceOverrides) || {};
   for (const it of itineraries) {
     const o = ov[it.id];
-    if (o && typeof o === 'object') Object.assign(it, o);
+    if (o && typeof o === 'object') {
+      Object.assign(it, o);
+    }
   }
 })();
 
@@ -56,14 +58,14 @@ function findComparableCashPrice(awardItinerary) {
   // Find the cheapest cash itinerary for a similar route
   const dest = awardItinerary.destination;
   const cashOptions = itineraries.filter(it =>
-    it.program === 'cash' &&
+    it.paymentType === 'cash' &&
     it.destination === dest
   );
   if (cashOptions.length === 0) {
     // Try matching route type
     const byType = itineraries.filter(it =>
-      it.program === 'cash' &&
-      it.routeType === awardItinerary.routeType
+      it.paymentType === 'cash' &&
+      it.routeFamily === awardItinerary.routeFamily
     );
     if (byType.length > 0) return Math.min(...byType.map(it => it.cashPricePerPerson));
     return null;
@@ -84,7 +86,7 @@ function calculateAwardTotalCost(itinerary) {
   const totalTaxes = (itinerary.taxesPerPerson || 0) * passengerConfig.total;
   const totalPoints = itinerary.pointsPerPerson * passengerConfig.total;
   // Use the best available point value
-  const programValue = getPointValueForProgram(itinerary.program);
+  const programValue = getPointValueForProgram(itinerary.pointsProgram || itinerary.program);
   const pointsCashEquiv = totalPoints * programValue;
   return { totalTaxes, totalPoints, pointsCashEquiv, totalCost: pointsCashEquiv + totalTaxes };
 }
@@ -92,16 +94,17 @@ function calculateAwardTotalCost(itinerary) {
 function getPointValueForProgram(program) {
   if (!program) return 0.015;
   const p = program.toLowerCase();
-  if (p.includes('chase') || p.includes('aeroplan')) return pointValues.chaseUR;
-  if (p.includes('amex') || p.includes('ana') || p.includes('asia miles') || p.includes('cathay')) return pointValues.amexMR;
-  if (p.includes('united')) return pointValues.unitedMiles;
+  const settings = loadSettings();
+  if (p.includes('chase') || p.includes('aeroplan')) return settings.pointValues.chaseUR;
+  if (p.includes('amex') || p.includes('ana') || p.includes('asia miles') || p.includes('cathay')) return settings.pointValues.amexMR;
+  if (p.includes('united')) return settings.pointValues.unitedMiles;
   return 0.015;
 }
 
 // ─── AWARD AVAILABILITY ───────────────────────────────
 
 function evaluateAwardAvailability(itinerary) {
-  if (itinerary.program === 'cash') return { status: 'cash', bookable: true, label: 'Cash Fare' };
+  if (itinerary.paymentType === 'cash') return { status: 'cash', bookable: true, label: 'Cash Fare' };
   const available = itinerary.awardSeatsAvailable || 0;
   const needed = passengerConfig.total;
   if (available >= needed) return { status: 'available', bookable: true, label: 'Family Bookable' };
@@ -110,46 +113,145 @@ function evaluateAwardAvailability(itinerary) {
   return { status: 'none', bookable: false, label: 'Not Available' };
 }
 
-// ─── FAMILY FRIENDLINESS SCORE ────────────────────────
+// ─── NEW SCORING ENGINE (0-100 SCALE) ─────────────────
+
+function calculateDetailedScores(it, weights) {
+  // 1. Price Score (0-100)
+  let totalCost = 0;
+  if (it.paymentType === 'points') {
+    const val = getPointValueForProgram(it.pointsProgram);
+    totalCost = (it.pointsPerPerson * 4 * val) + (it.taxesPerPerson * 4) + (it.groundTransferCost || 0);
+  } else {
+    totalCost = ((it.cashPricePerPerson || 0) * 4) + (it.groundTransferCost || 0);
+  }
+  // Linear interpolation: $3000 total = 100 points, $8000 total = 0 points
+  let priceScore = 100 - ((totalCost - 3000) / 5000) * 100;
+  priceScore = Math.max(0, Math.min(100, Math.round(priceScore)));
+
+  // 2. Duration Score (0-100)
+  const totalDurationHours = ((it.totalDurationMinutesOutbound || 0) + (it.totalDurationMinutesReturn || 0)) / 60;
+  // Linear interpolation: 32h roundtrip = 100 points, 64h roundtrip = 0 points
+  let durationScore = 100 - ((totalDurationHours - 32) / 32) * 100;
+  durationScore = Math.max(0, Math.min(100, Math.round(durationScore)));
+
+  // 3. Family Comfort Score (0-100)
+  let comfortPoints = 0;
+  const stopsOut = it.stopsOutbound ?? it.stops ?? 0;
+  const stopsRet = it.stopsReturn ?? it.stops ?? 0;
+  const totalStops = stopsOut + stopsRet;
+
+  // Stops
+  if (totalStops === 0) comfortPoints += 45;
+  else if (totalStops === 2) comfortPoints += 25;
+  else if (totalStops === 3) comfortPoints += 15;
+
+  // Layovers (ideal is between 90 and 240 mins)
+  let goodLayovers = true;
+  let hasLayover = false;
+  const segments = [...(it.outboundSegments || []), ...(it.returnSegments || [])];
+  for (const seg of segments) {
+    if (seg.layoverAfterMinutes > 0) {
+      hasLayover = true;
+      if (seg.layoverAfterMinutes < 90 || seg.layoverAfterMinutes > 240) {
+        goodLayovers = false;
+      }
+    }
+  }
+  if (hasLayover && goodLayovers) comfortPoints += 20;
+  else if (!hasLayover) comfortPoints += 20;
+
+  // Arrival time (Daytime preferred: arrival local time between 07:00 and 21:00)
+  let goodArrival = true;
+  if (it.outboundSegments && it.outboundSegments.length > 0) {
+    const lastSeg = it.outboundSegments[it.outboundSegments.length - 1];
+    if (lastSeg.arrivalTime) {
+      const hr = parseInt(lastSeg.arrivalTime.split(':')[0]);
+      if (lastSeg.arrivalTime.includes('+1') || hr < 7 || hr > 21) goodArrival = false;
+    }
+  }
+  if (goodArrival) comfortPoints += 15;
+
+  // Destination (CAN direct = 10, HKG/SZX = 5, PVG/SHA = 0)
+  const dest = it.destination.split('→')[0].trim();
+  if (dest === 'CAN') comfortPoints += 10;
+  else if (dest === 'HKG' || dest === 'SZX') comfortPoints += 5;
+
+  // Connection safety (same ticket)
+  if (it.sameTicket) comfortPoints += 10;
+
+  let familyScore = Math.max(0, Math.min(100, comfortPoints));
+
+  // 4. Risk Score (0-100)
+  let riskDeductions = 0;
+
+  // Separate ticket risk
+  if (!it.sameTicket) riskDeductions += 30;
+
+  // Overnight risk
+  let hasOvernight = false;
+  for (const seg of segments) {
+    if (seg.layoverAfterMinutes >= 720) hasOvernight = true;
+  }
+  if (hasOvernight || totalDurationHours > 48) riskDeductions += 20;
+
+  // Ground transfer risk/clearance (HKG/SZX = 15, PVG/SHA = 30)
+  if (dest === 'HKG' || dest === 'SZX') riskDeductions += 15;
+  else if (dest === 'PVG' || dest === 'SHA') riskDeductions += 30;
+
+  // Tight connection risk (< 90 mins layover)
+  let tightConnection = false;
+  for (const seg of segments) {
+    if (seg.layoverAfterMinutes > 0 && seg.layoverAfterMinutes < 90) tightConnection = true;
+  }
+  if (tightConnection) riskDeductions += 15;
+
+  // Award availability risk (fewer than 4 seats)
+  if (it.paymentType === 'points' && it.awardSeatsAvailable !== null && it.awardSeatsAvailable < 4) {
+    riskDeductions += 25;
+  }
+
+  let riskScore = Math.max(0, 100 - riskDeductions);
+
+  // 5. Points Value Score (0-100)
+  let pointsScore = 70;
+  if (it.paymentType === 'points') {
+    const cpp = calculateCPP(it) || 1.0;
+    // Scale: 1.0 cpp = 0, 2.0 cpp = 100
+    pointsScore = ((cpp - 1.0) / 1.0) * 100;
+    pointsScore = Math.max(0, Math.min(100, Math.round(pointsScore)));
+  }
+
+  // Weighted overall score
+  const wPrice = (weights.price ?? 30) / 100;
+  const wDuration = (weights.duration ?? 20) / 100;
+  const wFamily = (weights.family ?? 25) / 100;
+  const wRisk = (weights.risk ?? 20) / 100;
+  const wPoints = (weights.points ?? 5) / 100;
+
+  const overallScore = Math.round(
+    (priceScore * wPrice) +
+    (durationScore * wDuration) +
+    (familyScore * wFamily) +
+    (riskScore * wRisk) +
+    (pointsScore * wPoints)
+  );
+
+  return {
+    priceScore,
+    durationScore,
+    familyScore,
+    riskScore,
+    pointsScore,
+    overallScore,
+    totalCost
+  };
+}
 
 function getFamilyScore(itinerary) {
-  let score = 10;
-  const dur = itinerary.totalDurationHours || 20;
-  const stops = itinerary.stops || 0;
-  const dest = itinerary.destination.split('→')[0].trim();
-
-  // Travel time: 30% weight
-  if (dur <= 16) score -= 0;
-  else if (dur <= 20) score -= 0.6;
-  else if (dur <= 24) score -= 1.2;
-  else if (dur <= 30) score -= 2.0;
-  else score -= 3.0;
-
-  // Stops: 25% weight
-  if (stops === 0) score -= 0;
-  else if (stops === 1) score -= 0.8;
-  else if (stops === 2) score -= 1.8;
-  else score -= 2.5;
-
-  // Transfer ease to Guangzhou: 20% weight
-  if (dest === 'CAN') score -= 0;
-  else if (dest === 'HKG') score -= 0.8;
-  else if (dest === 'SZX') score -= 0.8;
-  else if (dest === 'PVG' || dest === 'SHA') score -= 1.6;
-  else score -= 1.0;
-
-  // Baggage/same-ticket: 15% weight
-  if (itinerary.program === 'cash' && stops <= 1) score -= 0;
-  else if (itinerary.routeType.includes('Open-jaw')) score -= 0.6;
-  else if (itinerary.program !== 'cash') score -= 0.5;
-  else score -= 1.0;
-
-  // Arrival time: 10% (simplified)
-  if (dur <= 18) score -= 0;
-  else if (dur <= 24) score -= 0.3;
-  else score -= 0.8;
-
-  return Math.max(1, Math.min(10, Math.round(score * 10) / 10));
+  // Legacy support: mapping 0-100 family score to 1-10
+  const weights = loadSettings().weights;
+  const scores = calculateDetailedScores(itinerary, weights);
+  return Math.max(1, Math.min(10, Math.round(scores.familyScore / 10 * 10) / 10));
 }
 
 function getFamilyScoreLabel(score) {
@@ -165,34 +267,30 @@ function getFamilyScoreLabel(score) {
 function getRecommendation(itinerary) {
   const cashPrice = itinerary.cashPricePerPerson;
   const adjustedCost = calculateAdjustedCostPerPerson(itinerary);
-  const dur = itinerary.totalDurationHours || 99;
-  const stops = itinerary.stops || 0;
+  const dur = ((itinerary.totalDurationMinutesOutbound || 0) + (itinerary.totalDurationMinutesReturn || 0)) / 60;
   const dest = itinerary.destination.split('→')[0].trim();
   const directCANPrice = getDirectCANPrice();
 
-  // AVOID checks first
-  if (dur > 32) return { label: 'Avoid', class: 'avoid', reason: 'Duration > 32h' };
+  if (dur > 64) return { label: 'Avoid', class: 'avoid', reason: 'Roundtrip duration > 64h' };
 
-  if (cashPrice != null) {
-    // Cash fare recommendations
-    if (dest === 'CAN' && stops === 0 && cashPrice < 1500) {
+  if (itinerary.paymentType === 'cash') {
+    if (dest === 'CAN' && (itinerary.stops || itinerary.stopsOutbound || 0) === 0 && cashPrice < 1500) {
       return { label: 'Buy Now', class: 'buy', reason: 'Nonstop CAN under $1,500' };
     }
-    if (dest === 'CAN' && stops <= 1 && cashPrice < 1250 && dur < 24) {
-      return { label: 'Buy Now', class: 'buy', reason: '1-stop CAN under $1,250, under 24h' };
+    if (dest === 'CAN' && (itinerary.stops || itinerary.stopsOutbound || 0) <= 1 && cashPrice < 1250 && dur < 48) {
+      return { label: 'Buy Now', class: 'buy', reason: '1-stop CAN under $1,250, under 48h RT' };
     }
     if (dest === 'HKG' && adjustedCost && directCANPrice && (directCANPrice - adjustedCost) >= 250) {
       return { label: 'Buy Now', class: 'buy', reason: 'HKG saves $250+ vs CAN' };
     }
-    if (itinerary.routeType.includes('Open-jaw') && adjustedCost && adjustedCost < 1300) {
+    if (itinerary.routeFamily.includes('Open-jaw') && adjustedCost && adjustedCost < 1300) {
       return { label: 'Buy Now', class: 'buy', reason: 'Open-jaw under $1,300 adjusted' };
     }
 
-    // Strong Candidate
-    if (dest === 'CAN' && stops <= 1 && cashPrice >= 1250 && cashPrice <= 1350) {
+    if (dest === 'CAN' && (itinerary.stops || itinerary.stopsOutbound || 0) <= 1 && cashPrice >= 1250 && cashPrice <= 1350) {
       return { label: 'Strong', class: 'strong', reason: 'CAN 1-stop $1,250-$1,350' };
     }
-    if (dest === 'CAN' && stops === 0 && cashPrice >= 1500 && cashPrice <= 1650) {
+    if (dest === 'CAN' && (itinerary.stops || itinerary.stopsOutbound || 0) === 0 && cashPrice >= 1500 && cashPrice <= 1650) {
       return { label: 'Strong', class: 'strong', reason: 'Nonstop CAN $1,500-$1,650' };
     }
     if ((dest === 'HKG' || dest === 'SZX') && adjustedCost && directCANPrice && (directCANPrice - adjustedCost) >= 200) {
@@ -202,26 +300,20 @@ function getRecommendation(itinerary) {
       return { label: 'Strong', class: 'strong', reason: 'PVG/SHA saves $400+ vs CAN' };
     }
 
-    // Watch
     if (dest === 'CAN' && cashPrice >= 1350 && cashPrice <= 1500) {
       return { label: 'Watch', class: 'watch', reason: 'CAN $1,350-$1,500' };
     }
     if (dest === 'HKG' && adjustedCost && directCANPrice) {
       const savings = directCANPrice - adjustedCost;
-      if (savings >= 100 && savings < 200) {
-        return { label: 'Watch', class: 'watch', reason: 'HKG saves only $100-$200' };
-      }
-      if (savings < 150) {
-        return { label: 'Avoid', class: 'avoid', reason: 'HKG saves < $150' };
-      }
+      if (savings >= 100 && savings < 200) return { label: 'Watch', class: 'watch', reason: 'HKG saves only $100-$200' };
+      if (savings < 150) return { label: 'Avoid', class: 'avoid', reason: 'HKG saves < $150' };
     }
     if ((dest === 'PVG' || dest === 'SHA') && adjustedCost && directCANPrice && (directCANPrice - adjustedCost) < 300) {
       return { label: 'Avoid', class: 'avoid', reason: 'PVG/SHA saves < $300' };
     }
   }
 
-  // Award fare recommendations
-  if (itinerary.pointsPerPerson) {
+  if (itinerary.paymentType === 'points') {
     const cpp = calculateCPP(itinerary);
     const avail = evaluateAwardAvailability(itinerary);
     if (cpp && cpp >= 1.5 && avail.bookable) {
@@ -239,7 +331,7 @@ function getRecommendation(itinerary) {
 }
 
 function getDirectCANPrice() {
-  const canCash = itineraries.filter(it => it.program === 'cash' && it.destination === 'CAN');
+  const canCash = itineraries.filter(it => it.paymentType === 'cash' && it.destination === 'CAN');
   if (canCash.length === 0) return null;
   return Math.min(...canCash.map(it => it.cashPricePerPerson));
 }
@@ -247,7 +339,7 @@ function getDirectCANPrice() {
 // ─── PAYMENT METHOD RECOMMENDATION ───────────────────
 
 function recommendPaymentMethod(itinerary) {
-  if (itinerary.program === 'cash') {
+  if (itinerary.paymentType === 'cash') {
     return { method: 'Cash', class: 'cash', reason: 'Cash fare — earns miles and simpler booking' };
   }
 
@@ -290,10 +382,16 @@ function calculateSavingsVsCAN(itinerary) {
 // ─── ENRICHMENT ──────────────────────────────────────
 
 function enrichItinerary(it) {
+  const settings = loadSettings();
+  const weights = settings.weights;
+  
+  // Calculate raw scores
+  const scores = calculateDetailedScores(it, weights);
+
   const cashTotal = calculateTotalCash(it.cashPricePerPerson);
   const adjustedPerPerson = calculateAdjustedCostPerPerson(it);
   const adjustedTotal = calculateAdjustedTotalCost(it);
-  const familyScore = getFamilyScore(it);
+  const familyScore = scores.familyScore / 10;
   const familyLabel = getFamilyScoreLabel(familyScore);
   const recommendation = getRecommendation(it);
   const savings = calculateSavingsVsCAN(it);
@@ -303,8 +401,19 @@ function enrichItinerary(it) {
   const payment = recommendPaymentMethod(it);
   const awardCost = calculateAwardTotalCost(it);
 
+  // Flight numbers and route string mappings
+  const flightNumbers = it.flightNumbers || (
+    (it.outboundSegments && it.outboundSegments.map(s => s.flightNumber).join(' / ')) || ''
+  );
+  const totalHours = ((it.totalDurationMinutesOutbound || 0) + (it.totalDurationMinutesReturn || 0)) / 60;
+  const stops = it.stopsOutbound ?? it.stops ?? 0;
+
   return {
     ...it,
+    route: `${it.origin} → ${it.destination}`,
+    flightNumbers,
+    totalHours,
+    stops,
     cashTotal,
     adjustedPerPerson,
     adjustedTotal,
@@ -316,41 +425,59 @@ function enrichItinerary(it) {
     cppRating,
     availability,
     payment,
-    awardCost
+    awardCost,
+    
+    // Detailed score fields for dynamic breakdown display
+    overallScore: scores.overallScore,
+    priceScore: scores.priceScore,
+    durationScore: scores.durationScore,
+    familyScorePercent: scores.familyScore,
+    riskScore: scores.riskScore,
+    pointsScore: scores.pointsScore,
+    totalCostCalculated: scores.totalCost
   };
 }
 
 function getEnrichedItineraries() {
-  return itineraries.map(enrichItinerary);
+  return getAllItineraries().map(enrichItinerary);
 }
 
-// ─── SUMMARY CARD SELECTORS ──────────────────────────
+// ─── SUMMARY CARD SELECTORS (UPDATED OVERALL RECOMMENDATIONS) ───
 
 function getBestOverallOption(enriched) {
-  const cashOpts = enriched.filter(it => it.cashPricePerPerson != null);
-  if (cashOpts.length === 0) return null;
-  return cashOpts.reduce((best, it) => {
-    const score = (it.adjustedPerPerson || 9999) - it.familyScore * 30;
-    const bestScore = (best.adjustedPerPerson || 9999) - best.familyScore * 30;
-    return score < bestScore ? it : best;
-  });
+  if (enriched.length === 0) return null;
+  return enriched.reduce((a, b) => (a.overallScore || 0) > (b.overallScore || 0) ? a : b);
 }
 
 function getCheapestOption(enriched) {
-  const cashOpts = enriched.filter(it => it.cashPricePerPerson != null);
-  if (cashOpts.length === 0) return null;
-  return cashOpts.reduce((a, b) =>
-    (a.adjustedPerPerson || 9999) < (b.adjustedPerPerson || 9999) ? a : b
-  );
+  const cash = enriched.filter(it => it.paymentType === 'cash');
+  if (cash.length === 0) return null;
+  return cash.reduce((a, b) => (a.cashPricePerPerson || 9999) < (b.cashPricePerPerson || 9999) ? a : b);
 }
 
-function getBestFamilyOption(enriched) {
-  return enriched.reduce((a, b) => a.familyScore > b.familyScore ? a : b);
+function getBestPointsOption(enriched) {
+  const points = enriched.filter(it => it.paymentType === 'points' && it.availability.bookable);
+  if (points.length === 0) {
+    const anyPoints = enriched.filter(it => it.paymentType === 'points');
+    if (anyPoints.length === 0) return null;
+    return anyPoints.reduce((a, b) => (a.pointsScore || 0) > (b.pointsScore || 0) ? a : b);
+  }
+  return points.reduce((a, b) => (a.pointsScore || 0) > (b.pointsScore || 0) ? a : b);
+}
+
+function getBestLowRiskOption(enriched) {
+  if (enriched.length === 0) return null;
+  return enriched.reduce((best, it) => {
+    if (it.riskScore !== best.riskScore) {
+      return it.riskScore > best.riskScore ? it : best;
+    }
+    return it.familyScorePercent > best.familyScorePercent ? it : best;
+  });
 }
 
 function getBestBackupRoute(enriched) {
   const alts = enriched.filter(it =>
-    it.destination !== 'CAN' && !it.routeType.includes('Open-jaw') && it.cashPricePerPerson != null
+    it.destination !== 'CAN' && !it.routeFamily.includes('Open-jaw') && it.paymentType === 'cash'
   );
   if (alts.length === 0) return null;
   return alts.reduce((a, b) =>
@@ -359,20 +486,20 @@ function getBestBackupRoute(enriched) {
 }
 
 function getBestCashFor4(enriched) {
-  const cashOpts = enriched.filter(it => it.cashPricePerPerson != null);
+  const cashOpts = enriched.filter(it => it.paymentType === 'cash');
   if (cashOpts.length === 0) return null;
   return cashOpts.reduce((a, b) => (a.cashTotal || 99999) < (b.cashTotal || 99999) ? a : b);
 }
 
 function getBestPointsFor4(enriched) {
-  const pointsOpts = enriched.filter(it => it.pointsPerPerson != null && it.availability.bookable);
+  const pointsOpts = enriched.filter(it => it.paymentType === 'points' && it.availability.bookable);
   if (pointsOpts.length === 0) return null;
   return pointsOpts.reduce((a, b) => (a.cpp || 0) > (b.cpp || 0) ? a : b);
 }
 
 function getBestChaseUR(enriched) {
   const chaseOpts = enriched.filter(it =>
-    it.program && (it.program.toLowerCase().includes('chase') || it.program.toLowerCase().includes('aeroplan') || it.program.toLowerCase().includes('united'))
+    it.pointsProgram && (it.pointsProgram.toLowerCase().includes('chase') || it.pointsProgram.toLowerCase().includes('aeroplan') || it.pointsProgram.toLowerCase().includes('united'))
   );
   if (chaseOpts.length === 0) return null;
   return chaseOpts.reduce((a, b) => (a.cpp || 0) > (b.cpp || 0) ? a : b);
@@ -380,7 +507,7 @@ function getBestChaseUR(enriched) {
 
 function getBestAmexMR(enriched) {
   const amexOpts = enriched.filter(it =>
-    it.program && (it.program.toLowerCase().includes('amex') || it.program.toLowerCase().includes('ana') || it.program.toLowerCase().includes('asia miles') || it.program.toLowerCase().includes('cathay'))
+    it.pointsProgram && (it.pointsProgram.toLowerCase().includes('amex') || it.pointsProgram.toLowerCase().includes('ana') || it.pointsProgram.toLowerCase().includes('asia') || it.pointsProgram.toLowerCase().includes('cathay'))
   );
   if (amexOpts.length === 0) return null;
   return amexOpts.reduce((a, b) => (a.cpp || 0) > (b.cpp || 0) ? a : b);
@@ -388,7 +515,7 @@ function getBestAmexMR(enriched) {
 
 function getBestUnitedMiles(enriched) {
   const uaOpts = enriched.filter(it =>
-    it.program && it.program.toLowerCase().includes('united')
+    it.pointsProgram && it.pointsProgram.toLowerCase().includes('united')
   );
   if (uaOpts.length === 0) return null;
   return uaOpts.reduce((a, b) => (a.cpp || 0) > (b.cpp || 0) ? a : b);
@@ -398,14 +525,20 @@ function getBestUnitedMiles(enriched) {
 
 function applyFilters(enriched, filters) {
   return enriched.filter(it => {
-    if (filters.maxPrice && it.adjustedPerPerson && it.adjustedPerPerson > filters.maxPrice) return false;
-    if (filters.maxDuration && it.totalDurationHours > filters.maxDuration) return false;
+    if (window.filterOutboundDate && it.outboundDate !== window.filterOutboundDate) return false;
+    if (window.filterReturnDate && it.returnDate !== window.filterReturnDate) return false;
+    // Price filter (compare per-person cash or cash equivalent cost)
+    if (filters.maxPrice) {
+      const ppp = it.paymentType === 'points' ? (it.totalCostCalculated / 4) : it.cashPricePerPerson;
+      if (ppp && ppp > filters.maxPrice) return false;
+    }
+    if (filters.maxDuration && it.totalHours > filters.maxDuration) return false;
     if (!filters.includeHKG && (it.destination.includes('HKG'))) return false;
     if (!filters.includePVG && (it.destination.includes('PVG') || it.destination.includes('SHA'))) return false;
     if (filters.nonstopOnly && it.stops > 0) return false;
     if (!filters.oneStopAllowed && it.stops > 1) return false;
     if (filters.familyFriendlyOnly && it.familyScore < 7) return false;
-    if (filters.familyBookableOnly && it.program !== 'cash' && !it.availability.bookable) return false;
+    if (filters.familyBookableOnly && it.paymentType === 'points' && !it.availability.bookable) return false;
     return true;
   });
 }

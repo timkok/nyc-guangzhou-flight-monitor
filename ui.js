@@ -180,44 +180,139 @@ function renderRouteCards(enriched) {
 }
 
 // ─── COMPARISON TABLE ────────────────────────────────
+let tableSortCol = 'overallScore';
+let tableSortDesc = true;
+
+function setTableSort(col) {
+  if (tableSortCol === col) {
+    tableSortDesc = !tableSortDesc;
+  } else {
+    tableSortCol = col;
+    tableSortDesc = true;
+  }
+  const enriched = getEnrichedItineraries();
+  $('#comparison-table').innerHTML = renderComparisonTable(enriched);
+}
+
 function renderComparisonTable(enriched) {
-  const rows = enriched.map(it => {
-    const price = it.cashPricePerPerson != null ? fmt(it.cashPricePerPerson) : '—';
-    const total4 = it.cashTotal != null ? fmt(it.cashTotal) : '—';
-    const adj = it.adjustedTotal != null ? fmt(it.adjustedTotal) : '—';
-    const pts = it.pointsPerPerson != null ? fmtK(it.pointsPerPerson * passengerConfig.total) : '—';
-    const cpp = it.cpp != null ? `${it.cpp.toFixed(1)}` : '—';
-    const cppCls = it.cppRating ? `badge-${it.cppRating.class}` : '';
-    return `<tr>
-      <td><strong>${it.origin}→${it.destination}</strong><br><span style="font-size:.7rem;color:var(--light)">${it.airline}</span></td>
-      <td>${it.routeType}</td>
-      <td class="text-right mono">${price}</td>
-      <td class="text-right mono">${total4}</td>
-      <td class="text-right mono">${adj}</td>
-      <td class="text-center">${programBadge(it.program)}</td>
-      <td class="text-right mono">${pts}</td>
-      <td class="text-center">${cpp !== '—' ? `<span class="badge ${cppCls}">${cpp}</span>` : '—'}</td>
-      <td class="text-center">${familyBadge(it.familyScore)}</td>
-      <td class="text-center">${recToBadge(it.recommendation)}</td>
+  const getArrow = (col) => {
+    if (tableSortCol !== col) return '';
+    return tableSortDesc ? ' ▼' : ' ▲';
+  };
+
+  const sorted = [...enriched];
+  sorted.sort((a, b) => {
+    let valA, valB;
+    if (tableSortCol === 'route') {
+      valA = `${a.origin} → ${a.destination}`;
+      valB = `${b.origin} → ${b.destination}`;
+    } else if (tableSortCol === 'type') {
+      valA = a.routeFamily;
+      valB = b.routeFamily;
+    } else if (tableSortCol === 'totalCost') {
+      valA = a.totalCostCalculated || 999999;
+      valB = b.totalCostCalculated || 999999;
+    } else if (tableSortCol === 'adjustedTotal') {
+      valA = a.adjustedTotal || 999999;
+      valB = b.adjustedTotal || 999999;
+    } else if (tableSortCol === 'cpp') {
+      valA = a.cpp || 0;
+      valB = b.cpp || 0;
+    } else if (tableSortCol === 'family') {
+      valA = a.familyScorePercent || 0;
+      valB = b.familyScorePercent || 0;
+    } else {
+      valA = a.overallScore || 0;
+      valB = b.overallScore || 0;
+    }
+
+    if (valA < valB) return tableSortDesc ? 1 : -1;
+    if (valA > valB) return tableSortDesc ? -1 : 1;
+    return 0;
+  });
+
+  const rows = sorted.map(it => {
+    const isPoints = it.paymentType === 'points';
+    const pricePerPerson = isPoints
+      ? fmt(it.taxesPerPerson) + ' + ' + fmtK(it.pointsPerPerson) + ' pts'
+      : fmt(it.cashPricePerPerson);
+    const totalFor4 = isPoints
+      ? fmt(it.taxesPerPerson * 4) + ' + ' + (it.pointsPerPerson * 4 / 1000).toFixed(0) + 'k pts'
+      : fmt(it.cashPricePerPerson * 4);
+    const adjTotal = it.adjustedTotal ? fmt(it.adjustedTotal) : '—';
+    const fScore = (it.familyScorePercent / 10).toFixed(1);
+
+    // Color flags for risk in table
+    const riskCls = it.riskScore >= 80 ? 'buy' : it.riskScore >= 50 ? 'watch' : 'avoid';
+
+    return `<tr onclick="const btn = document.querySelector('[data-tab=\\'flights\\']'); if(btn) btn.click(); const el = document.getElementById('itin-${it.id}'); if(el) el.scrollIntoView({behavior:'smooth'});" style="cursor:pointer">
+      <td><strong>${it.origin} → ${it.destination}</strong><br><span style="font-size:.7rem;color:var(--muted)">${it.airline}</span></td>
+      <td>${it.routeFamily}</td>
+      <td class="text-right mono">${pricePerPerson}</td>
+      <td class="text-right mono">${totalFor4}</td>
+      <td class="text-right mono font-semibold">${adjTotal}</td>
+      <td class="text-center">${programBadge(it.pointsProgram || it.program)}</td>
+      <td class="text-center mono">
+        <span class="badge badge-${riskCls}">${it.riskLevel} (${it.riskScore})</span>
+      </td>
+      <td class="text-center mono">${it.cpp ? it.cpp.toFixed(1) : '—'}</td>
+      <td class="text-center">
+        <span class="badge badge-${getFamilyScoreLabel(parseFloat(fScore)).class}">${fScore}/10</span>
+      </td>
+      <td class="text-center">
+        <span class="badge badge-primary" style="font-weight:700;background:var(--accent);color:#fff">${it.overallScore}</span>
+      </td>
     </tr>`;
   }).join('');
 
   return `<div class="table-wrap"><table>
     <thead><tr>
-      <th>Route</th><th>Type</th><th class="text-right">$/pp</th><th class="text-right">Total×4</th>
-      <th class="text-right">Adj Total</th><th class="text-center">Program</th><th class="text-right">Points</th>
-      <th class="text-center">CPP</th><th class="text-center">Family</th><th class="text-center">Rec</th>
+      <th onclick="setTableSort('route')" style="cursor:pointer;white-space:nowrap">Route${getArrow('route')}</th>
+      <th onclick="setTableSort('type')" style="cursor:pointer;white-space:nowrap">Type${getArrow('type')}</th>
+      <th class="text-right">$/pp</th>
+      <th class="text-right" onclick="setTableSort('totalCost')" style="cursor:pointer;white-space:nowrap">Total×4${getArrow('totalCost')}</th>
+      <th class="text-right" onclick="setTableSort('adjustedTotal')" style="cursor:pointer;white-space:nowrap">Adj Total${getArrow('adjustedTotal')}</th>
+      <th class="text-center">Program</th>
+      <th class="text-center">Risk Score</th>
+      <th class="text-center" onclick="setTableSort('cpp')" style="cursor:pointer;white-space:nowrap">CPP${getArrow('cpp')}</th>
+      <th class="text-center" onclick="setTableSort('family')" style="cursor:pointer;white-space:nowrap">Comfort${getArrow('family')}</th>
+      <th class="text-center" onclick="setTableSort('overallScore')" style="cursor:pointer;white-space:nowrap">Score${getArrow('overallScore')}</th>
     </tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 // ─── HEATMAP ─────────────────────────────────────────
+window.filterOutboundDate = null;
+window.filterReturnDate = null;
+
+function filterByHeatmapDate(hmOut, hmRet) {
+  window.filterOutboundDate = mapHeatmapDateToItineraryDate(hmOut);
+  window.filterReturnDate = mapHeatmapDateToItineraryDate(hmRet);
+  const btn = document.querySelector('[data-tab="flights"]');
+  if (btn) btn.click();
+  renderApp();
+}
+
+function clearDateFilter() {
+  window.filterOutboundDate = null;
+  window.filterReturnDate = null;
+  renderApp();
+}
+
+function mapHeatmapDateToItineraryDate(hmDate, year = 2026) {
+  const [mon, dayStr] = hmDate.split(' ');
+  const months = { Jun: '06', Jul: '07' };
+  const mm = months[mon] || '06';
+  const dd = dayStr.padStart(2, '0');
+  return `${year}-${mm}-${dd}`;
+}
+
 function renderHeatmap() {
   const hdrCells = heatmapReturnDates.map(d => `<th>${d}</th>`).join('');
   const rows = heatmapOutboundDates.map((outDate, i) => {
     const cells = heatmapReturnDates.map((_, j) => {
       const cell = heatmapData[i][j];
       const cls = { buy: 'hm-buy', strong: 'hm-strong', watch: 'hm-watch', avoid: 'hm-avoid', alt: 'hm-alt' }[cell.rec] || '';
-      return `<td class="${cls}" title="${outDate} → ${heatmapReturnDates[j]}: $${cell.price} (${cell.routeType})">$${cell.price}<span class="hm-sub">${cell.routeType}</span></td>`;
+      return `<td class="${cls}" style="cursor:pointer" onclick="filterByHeatmapDate('${outDate}', '${heatmapReturnDates[j]}')" title="${outDate} → ${heatmapReturnDates[j]}: $${cell.price} (${cell.routeType})">$${cell.price}<span class="hm-sub">${cell.routeType}</span></td>`;
     }).join('');
     return `<tr><th>${outDate}</th>${cells}</tr>`;
   }).join('');
@@ -403,10 +498,12 @@ function renderApp() {
   $('#warnings').innerHTML = renderWarnings();
 
   // Shortcuts
-  $('#shortcuts').innerHTML = renderShortcuts();
+  if ($('#shortcuts')) $('#shortcuts').innerHTML = renderShortcuts();
 
-  initTabs();
-  initFilters();
+  // Render itineraries list tab if available
+  if (typeof renderItinerariesTab === 'function') {
+    renderItinerariesTab();
+  }
 }
 
 function renderTabContent(enriched) {
@@ -417,31 +514,68 @@ function renderTabContent(enriched) {
   $('#overview-cards').innerHTML = renderRouteCards(filtered);
 
   // Cash only
-  const cashOnly = filtered.filter(it => it.program === 'cash');
+  const cashOnly = filtered.filter(it => it.paymentType === 'cash');
   $('#cash-cards').innerHTML = cashOnly.length ? renderRouteCards(cashOnly) : '<p style="color:var(--muted)">No cash routes match your filters.</p>';
 
   // Points only
-  const pointsOnly = filtered.filter(it => it.program !== 'cash');
+  const pointsOnly = filtered.filter(it => it.paymentType === 'points');
   $('#points-cards').innerHTML = pointsOnly.length ? renderRouteCards(pointsOnly) : '<p style="color:var(--muted)">No points routes match your filters.</p>';
 }
 
 function initFilters() {
   $$('.filters-bar input').forEach(input => {
     input.addEventListener('change', () => {
-      const enriched = getEnrichedItineraries();
-      const order = { 'Buy Now': 0, 'Strong': 1, 'Watch': 2, 'Avoid': 3 };
-      enriched.sort((a, b) => {
-        const oa = order[a.recommendation.label] ?? 2;
-        const ob = order[b.recommendation.label] ?? 2;
-        if (oa !== ob) return oa - ob;
-        return (a.adjustedPerPerson || 9999) - (b.adjustedPerPerson || 9999);
-      });
-      renderTabContent(enriched);
-      $('#comparison-table').innerHTML = renderComparisonTable(
-        applyFilters(enriched, currentFilters)
-      );
+      renderApp();
     });
   });
+}
+
+function toggleFilters() {
+  const panel = $('#filters-panel');
+  const btnText = $('#toggle-filters-text');
+  if (panel && btnText) {
+    const isHidden = window.getComputedStyle(panel).display === 'none';
+    panel.style.display = isHidden ? 'flex' : 'none';
+    btnText.textContent = isHidden ? 'Hide Filters' : 'Show Filters';
+  }
+}
+
+function applyPreset(presetType) {
+  $('#f-max-price').value = '';
+  $('#f-max-dur').value = '';
+  $('#f-hkg').checked = true;
+  $('#f-pvg').checked = true;
+  $('#f-nonstop').checked = false;
+  $('#f-1stop').checked = true;
+  $('#f-family').checked = false;
+  $('#f-bookable').checked = false;
+
+  if (presetType === 'cheapest') {
+    $('#f-max-dur').value = 48;
+  } else if (presetType === 'kids') {
+    $('#f-family').checked = true;
+  } else if (presetType === 'points') {
+    $('#f-bookable').checked = true;
+  } else if (presetType === 'lowrisk') {
+    $('#f-family').checked = true;
+    $('#f-max-dur').value = 42;
+  } else if (presetType === 'openjaw') {
+    $('#f-hkg').checked = true;
+    $('#f-pvg').checked = true;
+  }
+  renderApp();
+}
+
+function resetFilters() {
+  $('#f-max-price').value = '';
+  $('#f-max-dur').value = '';
+  $('#f-hkg').checked = true;
+  $('#f-pvg').checked = true;
+  $('#f-nonstop').checked = false;
+  $('#f-1stop').checked = true;
+  $('#f-family').checked = false;
+  $('#f-bookable').checked = false;
+  renderApp();
 }
 
 // ─── BOOKING CHECKLIST MODAL ─────────────────────────
@@ -646,6 +780,8 @@ async function refreshData() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  initTabs();
+  initFilters();
   renderApp();
   const chip = document.getElementById('update-chip');
   if (chip) {
