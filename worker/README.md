@@ -21,14 +21,24 @@ wrangler secret put AMADEUS_CLIENT_SECRET   # paste your API Secret
 wrangler deploy
 ```
 
-Wrangler prints a URL like `https://flight-monitor-proxy.<your-subdomain>.workers.dev`. Test it:
+Wrangler prints a URL like `https://flight-monitor-proxy.<your-subdomain>.workers.dev`. Test a single route:
 
 ```
 https://flight-monitor-proxy.<you>.workers.dev/flights?origin=JFK&destination=CAN&departureDate=2026-07-28&returnDate=2026-08-30&adults=2&children=2
 ```
 
+Or test the batch endpoint the page now uses for faster refreshes:
+
+```bash
+curl -X POST https://flight-monitor-proxy.<you>.workers.dev/batch \
+  -H 'content-type: application/json' \
+  -d '{"queries":[{"id":"jfk-can","origin":"JFK","destination":"CAN","departureDate":"2026-07-28","returnDate":"2026-08-30","adults":2,"children":2}]}'
+```
+
 ### 3. Wire it into the page
-Open the deployed site, click ⚙️ **Settings**, paste the Worker URL into the "Live API URL" field, and save. The 🔄 **Refresh** button will then fetch live cash fares and overlay them on the cash itineraries.
+Open the deployed site, click **Settings**, paste the Worker URL into the "Live API URL" field, and save. The **Refresh live fares** button will then batch-fetch live cash fares and overlay them on the cash itineraries.
+
+Successful refreshes are saved in browser `localStorage` as a live fare snapshot, so the page can keep showing the latest fetched values even after reload. Always re-check before booking.
 
 ## Switching to production data
 After enabling the production Amadeus app:
@@ -40,12 +50,39 @@ After enabling the production Amadeus app:
 
 `GET /flights?origin=JFK&destination=CAN&departureDate=2026-07-28&returnDate=2026-08-30&adults=2&children=2`
 
+Optional query params:
+- `cacheTtl`: cache lifetime in seconds, clamped between 60 and 3600. Default is 900.
+- `max`: max Amadeus offers to return before summarizing. Default is 20.
+
 Returns:
 ```json
 {
   "ok": true,
   "count": 12,
   "cheapest": { "perPerson": 1184.5, "total": 4738, "travelers": 4, "currency": "USD", "airlines": ["TK"], "stops": 1 },
+  "cacheStatus": "MISS",
   "fetchedAt": "2026-05-12T..."
 }
 ```
+
+`POST /batch`
+
+Request:
+```json
+{
+  "queries": [
+    {
+      "id": "jfk-can",
+      "origin": "JFK",
+      "destination": "CAN",
+      "departureDate": "2026-07-28",
+      "returnDate": "2026-08-30",
+      "adults": 2,
+      "children": 2,
+      "cacheTtl": 900
+    }
+  ]
+}
+```
+
+The Worker processes up to 30 queries per batch with limited concurrency and returns one result per query. Failed routes do not fail the whole batch.

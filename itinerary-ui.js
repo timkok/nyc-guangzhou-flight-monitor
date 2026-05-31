@@ -124,7 +124,7 @@ function renderItineraryCard(it) {
     </div>
     <div class="metrics compact-metrics">
       <div class="metric"><div class="metric-label">Total for 4</div><div class="metric-value">${totalDisplay}</div></div>
-      <div class="metric"><div class="metric-label">Price per person</div><div class="metric-value">${priceDisplay}</div></div>
+      <div class="metric"><div class="metric-label">Price per person</div><div class="metric-value">${priceDisplay}</div><div class="metric-note">${isPoints ? 'Points snapshot' : liveFareLabel(it)}</div></div>
       <div class="metric"><div class="metric-label">Adjusted total</div><div class="metric-value">${adjTotal}</div></div>
       <div class="metric"><div class="metric-label">Travel time</div><div class="metric-value">${durOut}</div></div>
       <div class="metric"><div class="metric-label">Stops</div><div class="metric-value">${(it.stopsOutbound ?? it.stops)===0?'Nonstop':(it.stopsOutbound ?? it.stops) != null ? (it.stopsOutbound ?? it.stops)+'-stop' : 'Unknown'}</div></div>

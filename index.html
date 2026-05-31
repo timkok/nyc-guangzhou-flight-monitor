@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Family flight decision tool for NYC/NJ to Guangzhou area. Compare cash, points, and mixed booking strategies for 2 adults + 2 children.">
   <title>NYC/NJ → Greater Guangzhou Flight Decision Monitor</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260531-live-fetch">
 </head>
 <body>
 
@@ -57,11 +57,12 @@
         </div>
       </details>
       <div class="utility-actions">
-        <button class="btn-sm" onclick="refreshData()" title="Re-render from data.js">Refresh</button>
+        <button class="btn-sm" onclick="refreshData()" title="Fetch live fares if configured, then re-render">Refresh live fares</button>
         <button class="btn-sm" onclick="showPriceEditor()" title="Edit cash prices & commit to GitHub">Edit prices</button>
         <button class="btn-sm" onclick="showSettings()">Settings</button>
         <button class="btn-sm" onclick="showDataPanel()">Data</button>
       </div>
+      <div id="live-refresh-status" class="live-refresh-status" aria-live="polite"></div>
     </details>
 
     <details class="control-panel admin-panel">
@@ -216,14 +217,14 @@
     This is a manual decision-support tool, not a live fare engine. Re-check prices, baggage, seats, and fare rules before booking.
   </footer>
 
-  <script src="overrides.js?v=20260520-ux-cleanup5"></script>
-  <script src="data.js?v=20260520-ux-cleanup5"></script>
-  <script src="logic.js?v=20260520-ux-cleanup5"></script>
-  <script src="trust-workflow.js?v=20260520-ux-cleanup5"></script>
-  <script src="ui.js?v=20260520-ux-cleanup5"></script>
-  <script src="itineraries.js?v=20260520-ux-cleanup5"></script>
-  <script src="itinerary-ui.js?v=20260520-ux-cleanup5"></script>
-  <script src="needs-details.js?v=20260520-ux-cleanup5"></script>
-  <script src="priceEditor.js?v=20260520-ux-cleanup5"></script>
+  <script src="overrides.js?v=20260531-live-fetch"></script>
+  <script src="data.js?v=20260531-live-fetch"></script>
+  <script src="logic.js?v=20260531-live-fetch"></script>
+  <script src="trust-workflow.js?v=20260531-live-fetch"></script>
+  <script src="ui.js?v=20260531-live-fetch"></script>
+  <script src="itineraries.js?v=20260531-live-fetch"></script>
+  <script src="itinerary-ui.js?v=20260531-live-fetch"></script>
+  <script src="needs-details.js?v=20260531-live-fetch"></script>
+  <script src="priceEditor.js?v=20260531-live-fetch"></script>
 </body>
 </html>

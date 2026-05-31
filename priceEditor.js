@@ -33,7 +33,7 @@ function peCurrentOverrides() {
 }
 
 function peCashItineraries() {
-  return itineraries.filter(it => it.program === 'cash');
+  return itineraries.filter(it => it.paymentType === 'cash');
 }
 
 function showPriceEditor() {
@@ -44,8 +44,9 @@ function showPriceEditor() {
   const rows = cash.map(it => {
     const ov = overrides[it.id] || {};
     const stamp = ov.updatedAt ? new Date(ov.updatedAt).toLocaleDateString() : '';
+    const stops = it.stops ?? it.stopsOutbound ?? 0;
     return `<tr data-id="${peEscapeHtml(it.id)}">
-      <td style="padding:6px 8px;font-size:.85rem"><div><strong>${peEscapeHtml(it.origin)} → ${peEscapeHtml(it.destination)}</strong></div><div style="color:var(--muted);font-size:.75rem">${peEscapeHtml(it.airline)} · ${it.stops === 0 ? 'nonstop' : it.stops + '-stop'} · ${peEscapeHtml(it.outboundDate || '')}</div></td>
+      <td style="padding:6px 8px;font-size:.85rem"><div><strong>${peEscapeHtml(it.origin)} → ${peEscapeHtml(it.destination)}</strong></div><div style="color:var(--muted);font-size:.75rem">${peEscapeHtml(it.airline)} · ${stops === 0 ? 'nonstop' : stops + '-stop'} · ${peEscapeHtml(it.outboundDate || '')}</div></td>
       <td style="padding:6px 8px"><input type="number" class="pe-price" data-id="${peEscapeHtml(it.id)}" value="${it.cashPricePerPerson ?? ''}" placeholder="—" style="width:90px"></td>
       <td style="padding:6px 8px;color:var(--muted);font-size:.75rem">${stamp}</td>
     </tr>`;
@@ -122,20 +123,17 @@ async function peFetchLive() {
   const cfg = peLoadCfg();
   if (!cfg.apiUrl) return peStatus('No Worker URL configured.', 'err');
   peStatus('Fetching live fares…');
-  const cash = peCashItineraries().filter(it => it.outboundDate && it.returnDate);
+  const results = await fetchLiveCashFares(cfg.apiUrl);
   let ok = 0, fail = 0;
-  for (const it of cash) {
-    const url = `${cfg.apiUrl}/flights?origin=${it.origin}&destination=${it.destination}&departureDate=${it.outboundDate}&returnDate=${it.returnDate}&adults=${passengerConfig.adults}&children=${passengerConfig.children}`;
-    try {
-      const r = await fetch(url);
-      const j = await r.json();
-      if (j.ok && j.cheapest) {
-        const inp = document.querySelector(`#price-editor-modal .pe-price[data-id="${CSS.escape(it.id)}"]`);
-        if (inp) inp.value = Math.round(j.cheapest.perPerson);
-        ok++;
-      } else fail++;
-    } catch { fail++; }
-  }
+  results.forEach(result => {
+    if (result.ok) {
+      const inp = document.querySelector(`#price-editor-modal .pe-price[data-id="${CSS.escape(result.id)}"]`);
+      if (inp) inp.value = result.price;
+      ok++;
+    } else {
+      fail++;
+    }
+  });
   peStatus(`Prefilled ${ok} route${ok === 1 ? '' : 's'}${fail ? `, ${fail} failed` : ''}. Review then commit.`, fail && !ok ? 'err' : 'ok');
 }
 

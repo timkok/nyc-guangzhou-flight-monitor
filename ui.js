@@ -5,6 +5,8 @@
 function $(sel) { return document.querySelector(sel); }
 function $$(sel) { return document.querySelectorAll(sel); }
 
+const LIVE_FARE_CACHE_KEY = 'flightLiveFareSnapshot';
+
 // ─── HELPERS ─────────────────────────────────────────
 function fmt(n) { return n == null ? 'Unknown' : '$' + n.toLocaleString(); }
 function fmtK(n) { return n == null ? 'Unknown' : (n / 1000).toFixed(0) + 'k'; }
@@ -30,6 +32,87 @@ function availBadge(avail) {
   if (avail.status === 'cash') return '';
   const cls = avail.bookable ? 'badge-good' : 'badge-poor';
   return `<span class="badge ${cls}">${avail.label}</span>`;
+}
+
+function normalizeApiBase(apiUrl) {
+  return String(apiUrl || '').trim().replace(/\/+$/, '');
+}
+
+function setLiveRefreshStatus(message, kind = 'info') {
+  const el = $('#live-refresh-status');
+  if (!el) return;
+  el.textContent = message || '';
+  el.dataset.kind = kind;
+}
+
+function liveCashItineraries() {
+  return itineraries.filter(it => it.paymentType === 'cash' && it.outboundDate && it.returnDate);
+}
+
+function getLiveFareSnapshot() {
+  try {
+    const raw = localStorage.getItem(LIVE_FARE_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLiveFareSnapshot(snapshot) {
+  try {
+    localStorage.setItem(LIVE_FARE_CACHE_KEY, JSON.stringify(snapshot));
+  } catch (e) {
+    console.warn('Could not save live fare snapshot:', e);
+  }
+}
+
+function applyLiveFareSnapshot() {
+  const snapshot = getLiveFareSnapshot();
+  if (!snapshot || !Array.isArray(snapshot.results)) return;
+  snapshot.results.forEach(result => {
+    if (!result || !result.ok || result.price == null) return;
+    const it = itineraries.find(item => item.id === result.id);
+    if (!it) return;
+    it.cashPricePerPerson = result.price;
+    it.liveUpdatedAt = result.fetchedAt || snapshot.fetchedAt;
+    it.liveSource = result.cacheStatus === 'HIT' ? 'Live API cache' : 'Live API';
+    it.liveCacheStatus = result.cacheStatus || '';
+  });
+}
+
+function buildLiveFareQueries() {
+  return liveCashItineraries().map(it => ({
+    id: it.id,
+    origin: it.origin,
+    destination: it.destination,
+    departureDate: it.outboundDate,
+    returnDate: it.returnDate,
+    adults: passengerConfig.adults,
+    children: passengerConfig.children,
+    currency: 'USD',
+    max: 20,
+    cacheTtl: 900,
+  }));
+}
+
+function liveFareLabel(it) {
+  if (!it?.liveUpdatedAt) return 'Manual snapshot';
+  const stamp = new Date(it.liveUpdatedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const source = it.liveCacheStatus === 'HIT' ? 'Live API cache' : 'Live API';
+  return `${source} · ${stamp}`;
+}
+
+async function mapWithConcurrency(items, limit, mapper) {
+  const out = new Array(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const index = cursor++;
+      out[index] = await mapper(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
 }
 
 // ─── OVERALL STATUS ──────────────────────────────────
@@ -223,7 +306,7 @@ function renderRouteCard(it) {
   let priceMetrics = '';
   if (it.cashPricePerPerson != null) {
     priceMetrics = `
-      <div class="metric"><div class="metric-label">Price / person</div><div class="metric-value">${fmt(it.cashPricePerPerson)}</div></div>
+      <div class="metric"><div class="metric-label">Price / person</div><div class="metric-value">${fmt(it.cashPricePerPerson)}</div><div class="metric-note">${liveFareLabel(it)}</div></div>
       <div class="metric"><div class="metric-label">Total for 4</div><div class="metric-value">${fmt(it.cashTotal)}</div></div>
       <div class="metric"><div class="metric-label">Adjusted total</div><div class="metric-value">${fmt(it.adjustedTotal)}</div></div>`;
   } else {
@@ -587,6 +670,7 @@ function initTabs() {
 
 // ─── MAIN RENDER ─────────────────────────────────────
 function renderApp() {
+  applyLiveFareSnapshot();
   const enriched = getEnrichedItineraries();
   // Sort: Buy > Strong > Watch > Avoid, then by adjusted cost
   const order = { 'Buy Now': 0, 'Strong': 1, 'Watch': 2, 'Avoid': 3 };
@@ -886,60 +970,99 @@ function doImport(event) {
 }
 
 async function fetchLiveCashFares(apiUrl) {
-  const cashItins = itineraries.filter(it => it.program === 'cash' && it.outboundDate && it.returnDate);
-  const results = [];
-  for (const it of cashItins) {
-    const url = `${apiUrl}/flights?origin=${it.origin}&destination=${it.destination}&departureDate=${it.outboundDate}&returnDate=${it.returnDate}&adults=${passengerConfig.adults}&children=${passengerConfig.children}`;
-    try {
-      const r = await fetch(url);
-      const j = await r.json();
-      if (j.ok && j.cheapest) {
-        const newPrice = Math.round(j.cheapest.perPerson);
-        it.cashPricePerPerson = newPrice;
-        it.liveUpdatedAt = j.fetchedAt;
-        results.push({ id: it.id, ok: true, price: newPrice });
-      } else {
-        results.push({ id: it.id, ok: false, reason: j.error || 'no offers' });
-      }
-    } catch (e) {
-      results.push({ id: it.id, ok: false, reason: String(e.message || e) });
+  const apiBase = normalizeApiBase(apiUrl);
+  const queries = buildLiveFareQueries();
+  if (!queries.length) return [];
+
+  const applyResult = (result) => {
+    if (!result || !result.ok || !result.cheapest) return result;
+    const newPrice = Math.round(result.cheapest.perPerson);
+    const it = itineraries.find(item => item.id === result.id);
+    if (it) {
+      it.cashPricePerPerson = newPrice;
+      it.liveUpdatedAt = result.fetchedAt;
+      it.liveSource = result.cacheStatus === 'HIT' ? 'Live API cache' : 'Live API';
+      it.liveCacheStatus = result.cacheStatus || '';
     }
+    return { id: result.id, ok: true, price: newPrice, cacheStatus: result.cacheStatus, fetchedAt: result.fetchedAt };
+  };
+
+  let results = [];
+  try {
+    const r = await fetch(`${apiBase}/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queries }),
+    });
+    if (r.ok) {
+      const j = await r.json();
+      if (j.ok && Array.isArray(j.results)) {
+        results = j.results.map(result => {
+          if (result.ok && result.cheapest) return applyResult(result);
+          return { id: result.id, ok: false, reason: result.error || 'no offers' };
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Batch live fare fetch failed, falling back to individual requests:', e);
   }
+
+  if (!results.length) {
+    results = await mapWithConcurrency(queries, 4, async (query) => {
+      const url = `${apiBase}/flights?origin=${encodeURIComponent(query.origin)}&destination=${encodeURIComponent(query.destination)}&departureDate=${encodeURIComponent(query.departureDate)}&returnDate=${encodeURIComponent(query.returnDate)}&adults=${encodeURIComponent(query.adults)}&children=${encodeURIComponent(query.children)}&cacheTtl=900`;
+      try {
+        const r = await fetch(url);
+        const j = await r.json();
+        if (j.ok && j.cheapest) return applyResult({ ...j, id: query.id });
+        return { id: query.id, ok: false, reason: j.error || 'no offers' };
+      } catch (e) {
+        return { id: query.id, ok: false, reason: String(e.message || e) };
+      }
+    });
+  }
+
+  saveLiveFareSnapshot({
+    fetchedAt: new Date().toISOString(),
+    apiUrl: apiBase,
+    results: results.filter(result => result && result.ok),
+    failures: results.filter(result => !result || !result.ok),
+  });
   return results;
 }
 
 async function refreshData() {
-  const chip = document.getElementById('update-chip');
-  const apiUrl = localStorage.getItem('liveApiUrl');
-  if (chip) {
-    chip.textContent = apiUrl ? '⏳ Fetching live fares…' : '⏳ Refreshing…';
-    chip.style.pointerEvents = 'none';
+  const apiUrl = normalizeApiBase(localStorage.getItem('liveApiUrl'));
+  if (!apiUrl) {
+    renderApp();
+    setLiveRefreshStatus('No Worker URL configured. Open Settings to enable live fare refresh.', 'warn');
+    return;
   }
-  let summary = '';
-  if (apiUrl) {
-    const results = await fetchLiveCashFares(apiUrl);
-    const ok = results.filter(r => r.ok).length;
-    const fail = results.length - ok;
-    summary = ` · ${ok}/${results.length} live${fail ? ` (${fail} failed)` : ''}`;
-    if (fail) console.warn('Live fetch failures:', results.filter(r => !r.ok));
-  }
+
+  const total = buildLiveFareQueries().length;
+  setLiveRefreshStatus(`Fetching live fares for ${total} cash route${total === 1 ? '' : 's'}...`, 'info');
+
+  const results = await fetchLiveCashFares(apiUrl);
+  const ok = results.filter(r => r.ok).length;
+  const fail = results.length - ok;
+  const cached = results.filter(r => r.ok && r.cacheStatus === 'HIT').length;
+  const stamp = new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
   renderApp();
-  if (chip) {
-    const now = new Date();
-    const stamp = now.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    chip.textContent = `🔄 ${apiUrl ? 'Live' : 'Refreshed'} ${stamp}${summary}`;
-    chip.style.pointerEvents = '';
-  }
+  setLiveRefreshStatus(
+    `Updated ${ok}/${results.length} live fare${results.length === 1 ? '' : 's'}${cached ? ` (${cached} from cache)` : ''}${fail ? `; ${fail} failed` : ''}. Last checked ${stamp}.`,
+    fail && !ok ? 'err' : fail ? 'warn' : 'ok'
+  );
+  if (fail) console.warn('Live fetch failures:', results.filter(r => !r.ok));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initFilters();
+  applyLiveFareSnapshot();
   renderApp();
-  const chip = document.getElementById('update-chip');
-  if (chip) {
-    const now = new Date();
-    const stamp = now.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    chip.textContent = `🔄 Loaded ${stamp}`;
+  const snapshot = getLiveFareSnapshot();
+  if (snapshot?.fetchedAt) {
+    const stamp = new Date(snapshot.fetchedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    setLiveRefreshStatus(`Loaded saved live fare snapshot from ${stamp}. Recheck before booking.`, 'info');
   }
 });
